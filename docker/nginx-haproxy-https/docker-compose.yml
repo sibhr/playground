@@ -1,0 +1,22 @@
+version: '2'
+services:
+  nginx-a:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+  nginx-b:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+  haproxy1:
+    build:
+      context: ./haproxy1
+      dockerfile: Dockerfile
+    ports:
+     - "443:443"
+  haproxy2:
+    build:
+      context: ./haproxy2
+      dockerfile: Dockerfile
+    ports:
+     - "2443:2443"
