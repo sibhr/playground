@@ -1,6 +1,8 @@
-# Boilerplates
+# Devops playground
+
+Experiments and examples for devops
 
 
-## Docker
+## Haproxy
 
-- [multiple haproxy with tls termination and host header rewriting](./docker/nginx-haproxy-https)
+- [multiple haproxy with tls termination and host header rewriting](./nginx-haproxy-https)

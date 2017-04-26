@@ -9,4 +9,4 @@ Create a chain of haproxy with tls termination and host header rewriting
 - Open a terminal
 - Run `docker-compose build`
 - Run `docker-compose up`
-- Run './test.sh'
+- Run `./test.sh`
