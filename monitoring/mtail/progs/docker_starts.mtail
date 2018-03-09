@@ -1,4 +1,0 @@
-counter mailt_start_container
-/start-container/ {
-  mailt_start_container++
-}

@@ -1,4 +1,0 @@
-counter mailt_line_count
-/$/ {
-  mailt_line_count++
-}
