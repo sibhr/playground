@@ -1,0 +1,59 @@
+# -*- mode: ruby -*-
+# # vi: set ft=ruby :
+
+Vagrant.require_version ">= 1.9.0"
+
+# Defaults for config options defined in CONFIG
+$num_instances = 2
+$vm_memory = 2048
+$vm_cpus = 1
+$instance_name_prefix = "centos"
+$share_folder = true
+$vm_gui = false
+
+# Attempt to apply the deprecated environment variable NUM_INSTANCES to
+# $num_instances while allowing config.rb to override it
+if ENV["NUM_INSTANCES"].to_i > 0 && ENV["NUM_INSTANCES"]
+  $num_instances = ENV["NUM_INSTANCES"].to_i
+end
+
+Vagrant.configure("2") do |config|
+  # always use Vagrants insecure key
+  config.ssh.insert_key = false
+
+  config.vm.box = "centos/7"
+
+  # Type: virtualbox share data
+  # See https://github.com/mitchellh/vagrant/issues/7157
+  if $share_folder
+    config.vm.synced_folder ".", "/vagrant", type: "virtualbox"
+  end
+
+  # enable hostmanager
+  config.hostmanager.enabled = true
+
+  # configure the host's /etc/hosts
+  config.hostmanager.manage_host = true
+
+  (1..$num_instances).each do |i|
+    config.vm.define vm_name = "%s-%02d" % [$instance_name_prefix, i] do |config|
+      config.vm.hostname = vm_name
+
+      config.vm.provider :virtualbox do |vb|
+        vb.gui = $vm_gui
+        vb.memory = $vm_memory
+        vb.cpus = $vm_cpus
+      end
+
+      ip = "192.168.50.#{i+100}"
+      config.vm.network :private_network, ip: ip
+
+    end
+  end
+  # Ansible Provisioning
+  # Inventory file is .vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory
+  config.vm.provision :ansible do |ansible|
+    ansible.playbook = "ansible/ping.yml"
+    ansible.playbook = "ansible/install-cockpit.yml"
+  end
+end

@@ -1,0 +1,12 @@
+# Example from an Ansible Playbook
+---
+- hosts:
+  - all
+  gather_facts: False # Faster
+
+  tasks:
+  - ping:
+
+# Induce an exception to see what happens
+# - ping:
+#     data: crash

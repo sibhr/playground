@@ -1,0 +1,11 @@
+[Unit]
+Description=Bash hello world
+After=network.target
+
+[Service]
+ExecStart=/opt/applications/bash-hello-world/bash-hello-world.sh
+Type=simple
+PIDFile=/opt/applications/bash-hello-world/run.pid
+
+[Install]
+WantedBy=default.target

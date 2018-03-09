@@ -1,0 +1,23 @@
+---
+- hosts:
+  - all
+  become: yes
+  become_user: root
+
+  tasks:
+  - name: Add Fedora cockpit-preview
+    yum_repository:
+      name: cockpit-preview
+      description: Fedora cockpit-preview
+      baseurl: https://copr-be.cloud.fedoraproject.org/results/@cockpit/cockpit-preview/epel-7-$basearch/
+      gpgkey: https://copr-be.cloud.fedoraproject.org/results/@cockpit/cockpit-preview/pubkey.gpg
+      gpgcheck: yes
+  - name: Install cockpit
+    yum:
+      name: cockpit
+      state: present
+  - name: enable cockpit
+    systemd:
+      name: cockpit
+      state: started
+      enabled: True

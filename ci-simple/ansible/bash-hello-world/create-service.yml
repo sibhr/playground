@@ -1,0 +1,35 @@
+---
+- hosts:
+  - all
+  become: yes
+  become_user: root
+  
+  tasks:
+
+  - name: Create folders
+    file:
+      path: /opt/applications/bash-hello-world
+      state: directory
+
+  - name: Copy bash-hello-world executable
+    copy:
+      src: bash-hello-world.sh
+      dest: /opt/applications/bash-hello-world/bash-hello-world.sh
+      owner: root
+      group: root
+      mode: 0744
+
+  - name: Copy bash-hello-world  service
+    copy:
+      src: bash-hello-world.service
+      dest: /etc/systemd/system/bash-hello-world.service
+      owner: root
+      group: root
+      mode: 0644
+
+  - name: Restart bash-hello-world service
+    systemd:
+      enabled: yes
+      state: restarted
+      daemon_reload: yes
+      name: bash-hello-world
