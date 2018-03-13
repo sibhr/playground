@@ -1,0 +1,17 @@
+dn: uid=user_test,ou=People,dc={{dns_zone}},dc=local
+objectClass: top
+objectClass: account
+objectClass: posixAccount
+objectClass: shadowAccount
+cn: user_test
+uid: user_test
+uidNumber: 9999
+gidNumber: 100
+homeDirectory: /home/user_test
+loginShell: /bin/bash
+gecos: User test [Admin (at) {{dns_zone}}]
+userPassword: {crypt}x
+shadowLastChange: 17058
+shadowMin: 0
+shadowMax: 99999
+shadowWarning: 7

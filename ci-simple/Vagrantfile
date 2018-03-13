@@ -10,6 +10,7 @@ $vm_cpus = 1
 $instance_name_prefix = "centos"
 $share_folder = true
 $vm_gui = false
+$dns_domain = ".ci-simple.local"
 
 # Attempt to apply the deprecated environment variable NUM_INSTANCES to
 # $num_instances while allowing config.rb to override it
@@ -34,10 +35,11 @@ Vagrant.configure("2") do |config|
 
   # configure the host's /etc/hosts
   config.hostmanager.manage_host = true
+  config.hostmanager.manage_guest = true
 
   (1..$num_instances).each do |i|
     config.vm.define vm_name = "%s-%02d" % [$instance_name_prefix, i] do |config|
-      config.vm.hostname = vm_name
+      config.vm.hostname = vm_name + $dns_domain
 
       config.vm.provider :virtualbox do |vb|
         vb.gui = $vm_gui

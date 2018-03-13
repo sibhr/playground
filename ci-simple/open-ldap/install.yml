@@ -1,0 +1,134 @@
+#
+# Based on 
+# - https://www.itzgeek.com/how-tos/linux/centos-how-tos/step-step-openldap-server-configuration-centos-7-rhel-7.html
+# - https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/system-level_authentication_guide/openldap
+#
+
+---
+- hosts:
+  - centos-01
+  become: yes
+  become_user: root
+  vars:
+    dns_zone: ci-simple
+    ldap_root_password: secret_password
+  tasks:
+
+  - name: Install openldap packages
+    yum: name={{ item }} state=latest
+    with_items:
+    - openldap
+    - openldap-servers
+    - openldap-clients
+    
+  - name: Set db permissions
+    file: path=/var/lib/ldap owner=ldap group=ldap state=directory
+
+  - name: Restart slapd service
+    systemd:
+      enabled: yes
+      state: restarted
+      daemon_reload: yes
+      name: slapd
+
+  - name: Hash OpenLDAP rootpw
+    command: slappasswd -s {{ldap_root_password}}
+    register: rootpw
+
+  - name: Copy OpenLDAP db.ldif
+    template: >
+      src=db.ldif.j2
+      dest=/tmp/db.ldif
+      owner=root
+      group=root
+      mode=0644
+  
+  - name: Import OpenLDAP db.ldif
+    command: ldapmodify -Y EXTERNAL  -H ldapi:/// -f /tmp/db.ldif
+    notify: restart slapd
+
+  #
+  # Certificates
+  #
+
+  - name: Copy openssl config
+    template: >
+      src=csr_config.cfg.j2
+      dest=/tmp/csr_config.cfg
+      owner=root
+      group=root
+      mode=0644
+
+  - name: Create certs
+    command: openssl req  -config /tmp/csr_config.cfg  -new -x509 -nodes -out /etc/openldap/certs/{{dns_zone}}_cert.pem -keyout /etc/openldap/certs/{{dns_zone}}_key.pem -days 365
+  
+  - name: Set cetrs permissions
+    file: path={{item}} owner=ldap group=ldap 
+    with_items:
+    - /etc/openldap/certs/{{dns_zone}}_cert.pem
+    - /etc/openldap/certs/{{dns_zone}}_key.pem
+
+  - name: Copy OpenLDAP certs.ldif
+    template: src=certs.ldif.j2 dest=/tmp/certs.ldif owner=root group=root mode=0644   
+  
+  - name: Import OpenLDAP certs.ldif
+    command: ldapmodify -Y EXTERNAL  -H ldapi:/// -f /tmp/certs.ldif
+    notify: restart slapd
+
+
+
+  #
+  # Setup ldap db
+  #
+  - name: Copy ldap DB_CONFIG
+    copy: src=/usr/share/openldap-servers/DB_CONFIG.example dest=/var/lib/ldap/DB_CONFIG remote_src=yes
+
+  - name: Import OpenLDAP schema
+    command: "{{item}}"
+    with_items:
+    - "ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/cosine.ldif"
+    - "ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/nis.ldif" 
+    - "ldapadd -Y EXTERNAL -H ldapi:/// -f /etc/openldap/schema/inetorgperson.ldif"
+    ignore_errors: yes
+
+  - name: Copy OpenLDAP base.ldif
+    template: src=base.ldif.j2 dest=/tmp/base.ldif owner=root group=root mode=0644   
+    
+  - name: Import OpenLDAP certs.ldif
+    command: ldapadd -x -w {{ldap_root_password}} -D "cn=ldapadm,dc={{dns_zone}},dc=local" -f /tmp/base.ldif
+    ignore_errors: yes
+    notify: restart slapd
+
+  #
+  # Add user to ldap
+  #
+  - name: Copy OpenLDAP user_test.ldif
+    template: src=user_test.ldif.j2 dest=/tmp/user_test.ldif owner=root group=root mode=0644
+
+  - name: Import OpenLDAP user_test.ldif
+    command: "{{item}}"
+    with_items:
+    - "ldapadd -x -w {{ldap_root_password}} -D \"cn=ldapadm,dc={{dns_zone}},dc=local\" -f /tmp/user_test.ldif"
+    - "ldappasswd -s password123 -x -w {{ldap_root_password}} -D \"cn=ldapadm,dc={{dns_zone}},dc=local\" -x \"uid=user_test,ou=People,dc={{dns_zone}},dc=local\" "
+    - "ldapsearch -x cn=user_test -b dc={{dns_zone}},dc=local"
+    ignore_errors: yes
+    notify: restart slapd
+    register: myoutput
+    
+  - debug: msg="{{ myoutput }}"
+  #
+  # Check
+  #
+  - name: Check OpenLDAP config
+    command: slaptest -u
+    register: myoutput
+  - debug: msg="{{ myoutput }}"
+
+  #
+  # Service handlers
+  #
+
+  handlers:
+  
+  - name: restart slapd
+    service: name=slapd state=restarted

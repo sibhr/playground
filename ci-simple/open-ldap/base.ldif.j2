@@ -1,0 +1,19 @@
+# vi base.ldif
+
+dn: dc={{dns_zone}},dc=local
+dc: {{dns_zone}}
+objectClass: top
+objectClass: domain
+
+dn: cn=ldapadm ,dc={{dns_zone}},dc=local
+objectClass: organizationalRole
+cn: ldapadm
+description: LDAP Manager
+
+dn: ou=People,dc={{dns_zone}},dc=local
+objectClass: organizationalUnit
+ou: People
+
+dn: ou=Group,dc={{dns_zone}},dc=local
+objectClass: organizationalUnit
+ou: Group
