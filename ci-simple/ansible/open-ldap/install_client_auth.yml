@@ -1,0 +1,27 @@
+---
+- hosts:
+  - all
+  become: yes
+  become_user: root
+  vars:
+    dns_zone: ci-simple
+    ldap_root_password: secret_password
+  tasks:
+
+  - name: Install openldap packages
+    yum: name={{ item }} state=latest
+    with_items:
+    - openldap-clients 
+    - nss-pam-ldapd
+
+  - name: Install nslcd service
+    systemd: enabled=yes state=restarted daemon_reload=yes name=nslcd
+
+  - name: Enable auth
+    command: authconfig --enableldap --enableldapauth --ldapserver=centos-01.{{dns_zone}}.local --ldapbasedn="dc={{dns_zone}},dc=local" --enablemkhomedir --update
+    notify: restart nslcd
+
+  handlers:
+  
+  - name: restart nslcd
+    service: name=nslcd state=restarted

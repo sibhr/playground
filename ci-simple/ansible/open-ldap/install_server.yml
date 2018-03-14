@@ -25,11 +25,7 @@
     file: path=/var/lib/ldap owner=ldap group=ldap state=directory
 
   - name: Restart slapd service
-    systemd:
-      enabled: yes
-      state: restarted
-      daemon_reload: yes
-      name: slapd
+    systemd: enabled=yes state=restarted daemon_reload=yes name=slapd
 
   - name: Hash OpenLDAP rootpw
     command: slappasswd -s {{ldap_root_password}}

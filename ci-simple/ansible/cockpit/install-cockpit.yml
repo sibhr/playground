@@ -5,6 +5,16 @@
   become_user: root
 
   tasks:
+
+  - name: "Disabling SELinux"
+    selinux:
+      state: permissive
+
+  - name: "Set SELinux in permissive mode until the machine is rebooted"
+    command: setenforce 0
+    ignore_errors: true
+    changed_when: false
+
   - name: Add Fedora cockpit-preview
     yum_repository:
       name: cockpit-preview
@@ -12,10 +22,12 @@
       baseurl: https://copr-be.cloud.fedoraproject.org/results/@cockpit/cockpit-preview/epel-7-$basearch/
       gpgkey: https://copr-be.cloud.fedoraproject.org/results/@cockpit/cockpit-preview/pubkey.gpg
       gpgcheck: yes
+
   - name: Install cockpit
     yum:
       name: cockpit
       state: present
+      
   - name: enable cockpit
     systemd:
       name: cockpit

@@ -26,3 +26,15 @@ Login with user: vagrant and password: vagrant
 - Enable centos ssh login with ldap credentials
 - Patch cockpit to show more then 10 service log files
 - Upgrade service to run with non root user
+
+## Notes
+
+Test ldap user login:
+
+- login as vagrant user with `vagrant ssh`
+- test local login with `su - user_test`
+- enter password `password123`
+
+## Issues
+
+- Cockpit with ldap crashes with selinux enabled, use permissive policy
