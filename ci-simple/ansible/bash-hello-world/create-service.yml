@@ -7,27 +7,38 @@
   tasks:
 
   - name: Create folders
-    file:
-      path: /opt/applications/bash-hello-world
-      state: directory
+    file: path="{{ item }}" state=directory owner=deploy group=deploy
+    with_items:
+    - /opt/applications
+    - /opt/applications/bash-hello-world
+    - /opt/applications/bash-hello-world/logs
 
-  - name: Copy bash-hello-world executable
+  - name: Copy executable
     copy:
       src: bash-hello-world.sh
       dest: /opt/applications/bash-hello-world/bash-hello-world.sh
-      owner: root
-      group: root
+      owner: deploy
+      group: deploy
       mode: 0744
 
-  - name: Copy bash-hello-world  service
+  - name: Copy service script
+    copy:
+      src: service.sh
+      dest: /opt/applications/bash-hello-world/service.sh
+      owner: deploy
+      group: deploy
+      mode: 0744 # -> "u=rwx,g=r,o=r"
+
+
+  - name: Copy service config
     copy:
       src: bash-hello-world.service
       dest: /etc/systemd/system/bash-hello-world.service
       owner: root
       group: root
-      mode: 0644
+      mode: 0644 # -> "u=rw,g=r,o=r"
 
-  - name: Restart bash-hello-world service
+  - name: Restart service
     systemd:
       enabled: yes
       state: restarted

@@ -8,6 +8,7 @@
 
   - name: "Disabling SELinux"
     selinux:
+      policy: targeted
       state: permissive
 
   - name: "Set SELinux in permissive mode until the machine is rebooted"

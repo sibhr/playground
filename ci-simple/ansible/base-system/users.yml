@@ -1,0 +1,41 @@
+- hosts: all
+  become: yes
+  become_user: root
+  vars:
+    users_group: users
+    sudoers:
+      - user_test
+
+  tasks:
+    - name: Create user groups
+      group: name="{{ item }}" state=present
+      with_items:
+      - "{{ users_group }}"
+
+    - name: Add user deploy
+      user:
+        name: deploy
+        comment: "Deploy apps"
+
+    - name: Allow '{{ users_group }}' group to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^%{{ users_group }}'
+        line: '%{{ users_group }} ALL=(ALL) NOPASSWD: /bin/journalctl, /bin/cockpit-bridge, /bin/systemctl'
+        validate: visudo -cf %s
+
+    # - name: Add sudoers users to {{ users_group }} group
+    #   user:
+    #     name: "{{ item }}"
+    #     groups: "{{ users_group }}"
+    #     append: yes
+    #   with_items: "{{ sudoers }}"
+
+    # Required to see logs in cockpit
+    # - name: Add sudoers users to systemd-journal group
+    #   user:
+    #     name: "{{ item }}"
+    #     groups: systemd-journal
+    #     append: yes
+    #   with_items: "{{ sudoers }}"

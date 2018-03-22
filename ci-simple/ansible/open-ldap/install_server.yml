@@ -101,11 +101,12 @@
   - name: Copy OpenLDAP user_test.ldif
     template: src=user_test.ldif.j2 dest=/tmp/user_test.ldif owner=root group=root mode=0644
 
+  # Import user `user_test` with password `password`
   - name: Import OpenLDAP user_test.ldif
     command: "{{item}}"
     with_items:
     - "ldapadd -x -w {{ldap_root_password}} -D \"cn=ldapadm,dc={{dns_zone}},dc=local\" -f /tmp/user_test.ldif"
-    - "ldappasswd -s password123 -x -w {{ldap_root_password}} -D \"cn=ldapadm,dc={{dns_zone}},dc=local\" -x \"uid=user_test,ou=People,dc={{dns_zone}},dc=local\" "
+    - "ldappasswd -s password -x -w {{ldap_root_password}} -D \"cn=ldapadm,dc={{dns_zone}},dc=local\" -x \"uid=user_test,ou=People,dc={{dns_zone}},dc=local\" "
     - "ldapsearch -x cn=user_test -b dc={{dns_zone}},dc=local"
     ignore_errors: yes
     notify: restart slapd
