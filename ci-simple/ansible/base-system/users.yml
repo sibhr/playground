@@ -25,6 +25,17 @@
         line: '%{{ users_group }} ALL=(ALL) NOPASSWD: /bin/journalctl, /bin/cockpit-bridge, /bin/systemctl'
         validate: visudo -cf %s
 
+    - name: Allow 'deploy' group to have passwordless sudo
+      lineinfile:
+        dest: /etc/sudoers
+        state: present
+        regexp: '^%deploy'
+        line: '%deploy ALL=(ALL) NOPASSWD: /bin/journalctl, /bin/systemctl'
+        validate: visudo -cf %s
+
+
+
+
     # - name: Add sudoers users to {{ users_group }} group
     #   user:
     #     name: "{{ item }}"

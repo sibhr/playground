@@ -2,7 +2,7 @@
 - hosts:
   - all
   become: yes
-  become_user: root
+  become_user: deploy
   
   tasks:
 
@@ -39,8 +39,5 @@
       mode: 0644 # -> "u=rw,g=r,o=r"
 
   - name: Restart service
-    systemd:
-      enabled: yes
-      state: restarted
-      daemon_reload: yes
-      name: bash-hello-world
+    command: "sudo systemctl restart bash-hello-world"
+
