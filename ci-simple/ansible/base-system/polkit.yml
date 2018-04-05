@@ -1,0 +1,31 @@
+# Set polkit rules http://cockpit-project.org/guide/latest/privileges.html#privileges-polkit
+
+#
+# Not required for the moment
+#
+
+- hosts: all
+  become: yes
+  become_user: root
+  vars:
+    users_group: users
+    sudoers:
+      - user_test
+  
+  tasks:
+
+  - name: Create polkit folders
+    file: path=/etc/polkit-1.rules.d state=directory 
+
+  - name: Copy polkit config
+    template: >
+      src=polkit.j2
+      dest=/etc/polkit-1/rules.d/60-operators.rule
+      owner=root
+      group=root
+      mode=0644
+    notify: restart polkit
+
+  handlers:
+  - name: restart polkit
+    service: name=polkit state=restarted
