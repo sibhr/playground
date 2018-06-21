@@ -1,0 +1,15 @@
+# Example from https://docs.openshift.com/container-platform/3.9/install_config/storage_examples/shared_storage.html#sharing-an-nfs-pv-across-two-pods-creating-the-persistent-volume
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: nfs-pv 
+spec:
+  capacity:
+    storage: 100Mi 
+  accessModes:
+    - ReadWriteMany 
+  persistentVolumeReclaimPolicy: Recycle 
+  nfs: 
+    path: /exports/pv00
+    server: centos-01
+    readOnly: false

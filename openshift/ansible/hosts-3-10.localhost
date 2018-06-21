@@ -1,0 +1,44 @@
+#bare minimum hostfile
+
+centos-01 openshift_node_group_name="node-config-all-in-one" ansible_host=127.0.0.1 ansible_port=2222 ansible_user='vagrant' ansible_ssh_private_key_file='/Users/gianluca/.vagrant.d/insecure_private_key'
+centos-02 openshift_node_group_name="node-config-all-in-one" ansible_host=127.0.0.1 ansible_port=2200 ansible_user='vagrant' ansible_ssh_private_key_file='/Users/gianluca/.vagrant.d/insecure_private_key'
+centos-03 openshift_node_group_name="node-config-all-in-one" ansible_host=127.0.0.1 ansible_port=2201 ansible_user='vagrant' ansible_ssh_private_key_file='/Users/gianluca/.vagrant.d/insecure_private_key'
+
+[OSEv3:children]
+masters
+nodes
+etcd
+
+[OSEv3:vars]
+# if your target hosts are Fedora uncomment this
+#ansible_python_interpreter=/usr/bin/python3
+openshift_deployment_type=origin
+openshift_portal_net=172.30.0.0/16
+# localhost likely doesn't meet the minimum requirements
+openshift_disable_check=disk_availability,memory_availability
+openshift_node_groups=[{'name': 'node-config-all-in-one', 'labels': ['node-role.kubernetes.io/master=true', 'node-role.kubernetes.io/infra=true', 'node-role.kubernetes.io/compute=true']}]
+
+# Disable host key verification and become root
+ansible_ssh_common_args='-o StrictHostKeyChecking=no'
+ansible_become=yes
+ansible_become_user=root
+
+[masters]
+#localhost ansible_connection=local
+centos-01
+centos-02
+centos-03
+
+[etcd]
+#localhost ansible_connection=local
+centos-01
+centos-02
+centos-03
+
+[nodes]
+# openshift_node_group_name should refer to a dictionary with matching key of name in list openshift_node_groups.
+# localhost ansible_connection=local openshift_node_group_name="node-config-all-in-one"
+
+centos-01 openshift_node_group_name="node-config-all-in-one"
+centos-02 openshift_node_group_name="node-config-all-in-one"
+centos-03 openshift_node_group_name="node-config-all-in-one"

@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: List
+metadata:
+  name: gitlabce-pv
+items:
+- kind: PersistentVolume
+  apiVersion: v1
+  metadata:
+    name: pv01 
+  spec:
+    capacity:
+      storage: 1024Mi 
+    accessModes:
+    - ReadWriteOnce 
+    nfs: 
+      path: /exports/pv01
+      server: centos-01
+    persistentVolumeReclaimPolicy: Recycle
+- kind: PersistentVolume
+  apiVersion: v1
+  metadata:
+    name: pv02
+  spec:
+    capacity:
+      storage: 1024Mi 
+    accessModes:
+    - ReadWriteOnce 
+    nfs: 
+      path: /exports/pv02
+      server: centos-01
+    persistentVolumeReclaimPolicy: Recycle
+- kind: PersistentVolume
+  apiVersion: v1
+  metadata:
+    name: pv03
+  spec:
+    capacity:
+      storage: 1024Mi 
+    accessModes:
+    - ReadWriteOnce 
+    nfs: 
+      path: /exports/pv03
+      server: centos-01
+    persistentVolumeReclaimPolicy: Recycle
+- kind: PersistentVolume
+  apiVersion: v1
+  metadata:
+    name: pv04
+  spec:
+    capacity:
+      storage: 1024Mi 
+    accessModes:
+    - ReadWriteOnce 
+    nfs: 
+      path: /exports/pv04
+      server: centos-01
+    persistentVolumeReclaimPolicy: Recycle 
