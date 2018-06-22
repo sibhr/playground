@@ -1,17 +1,27 @@
 apiVersion: v1
-kind: List
+kind: Template
 metadata:
-  name: gitlab
-
-items:
-  
-- apiVersion: v1
-  kind: ServiceAccount
-  metadata:
-    name: gitlab-user
-    labels:
-      name: gitlab-user
-      rndid: gitlab
+  name: gitlab-template
+labels:
+  createdBy: gitlab-template
+parameters:
+- name: APPLICATION_HOSTNAME
+  description: Hostname for service routes
+  value: gitlab.127.0.0.1.nip.io
+- name: GITLAB_ROOT_PASSWORD
+  description: Password for the GitLab 'root' user
+  value: password
+- name: SERVICE_ACCOUNT
+  description: k8s service account
+  value: gitlab
+objects:  
+# - apiVersion: v1
+#   kind: ServiceAccount
+#   metadata:
+#     name: gitlab-user
+#     labels:
+#       name: gitlab-user
+#       rndid: gitlab
 
 - apiVersion: v1
   kind: Pod
@@ -24,10 +34,10 @@ items:
     containers:
       - name: gitlab-server
         image: docker.io/gitlab/gitlab-ce:latest
-        serviceAccount: gitlab-user
+        serviceAccount: "${SERVICE_ACCOUNT}"
         env:
         - name: GITLAB_OMNIBUS_CONFIG
-          value: "hostname='gitlab.192.168.50.101.nip.io'; external_url 'http://gitlab.192.168.50.101.nip.io'; gitlab_rails['lfs_enabled'] = false; prometheus_monitoring['enable'] = false;"
+          value: "hostname='${APPLICATION_HOSTNAME}'; external_url \"http://#{hostname}/\" unless hostname.to_s == '';  root_pass='${GITLAB_ROOT_PASSWORD}'; prometheus_monitoring['enable'] = false;"
         # command: ["/bin/sh"]
         # args: ["-c", "while true; do msg=\"$(date) hello\" && echo $msg && echo $msg >> /mnt/nfsvol/test.log; sleep 10;done"]    
         ports:
@@ -71,19 +81,10 @@ items:
       name: gitlab-route
       rndid: gitlab
   spec:
-    host: gitlab.192.168.50.101.nip.io
+    host: "${APPLICATION_HOSTNAME}"
     to:
       kind: Service
       name: gitlab-service
     port:
       targetPort: 80-http
 
-#       "spec": {
-#         "host": "${APPLICATION_HOSTNAME}",
-#         "to": {
-#           "kind": "Service",
-#           "name": "${APPLICATION_NAME}"
-#         },
-#         "port": {
-#           "targetPort": "80-http"
-#         }

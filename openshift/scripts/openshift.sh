@@ -98,9 +98,42 @@ function cmd(){
 #
 declare OPENSHIFT_MASTER="centos-01"
 declare OPENSHIFT_CLUSTER_URL="https://${OPENSHIFT_MASTER}:8443"
+declare OPENSHIFT_DOCKER_CLUSTER_URL="https://127.0.0.1:8443"
+
+# Set last version to solve issue https://github.com/openshift/origin/pull/13204
+declare OPENSHIFT_CLUSTER_DOCKER_VERSION="v3.9.0"
 
 function openshift() {
   case $PARAM_OPENSHIFT in
+    docker-up)
+      command -v docker >/dev/null 2>&1 || {
+        echo " * ERROR: install docker and retry!"
+        exit 1
+      }
+      command -v socat >/dev/null 2>&1 || {
+        echo " * Install brew socat"
+        brew install socat
+      }
+      echo " * Edit docker insecure registry and add '172.30.0.0/16' "    
+      msg "Start up cluster with docker"
+      # Sync internal docker clock with guest os
+      cmd "docker run -it --rm --privileged --pid=host debian nsenter -t 1 -m -u -n -i date -u $(date -u +%m%d%H%M%Y)"
+      cmd "oc cluster up --version=${OPENSHIFT_CLUSTER_DOCKER_VERSION} --http-proxy=docker.for.mac.http.internal:3128 --https-proxy=docker.for.mac.http.internal:3129"
+      msg " !! IMPORTANT !! - If router and docker registry are not running: create admin user with this script, login and restart router and docker registry"
+    ;;
+    docker-down)
+      echo "Stop cluster"
+      #oc login -u system:admin
+      #oc config set-cluster 127-0-0-1:8443
+      oc cluster down
+      #oc config delete-cluster 127-0-0-1:8443
+    ;;
+    docker-login)
+      oc login -u system:admin --server=${OPENSHIFT_DOCKER_CLUSTER_URL} --insecure-skip-tls-verify --loglevel 5
+      oc create user admin
+      oc adm policy add-cluster-role-to-user cluster-admin admin
+      oc login -u admin -p admin --server=${OPENSHIFT_DOCKER_CLUSTER_URL} --insecure-skip-tls-verify --loglevel 5
+    ;;
     # make user admin to be a real admin, must be run on a master node
     acl-for-admin)
       vagrant ssh ${OPENSHIFT_MASTER} -c "oc adm policy add-cluster-role-to-user cluster-admin admin"
@@ -138,10 +171,10 @@ function openshift() {
     ;;
 
     get-all)
-      cmd "oc get all --show-labels=true"
       cmd "oc get pv  --show-labels=true"
       cmd "oc get pvc --show-labels=true"
       cmd "oc get serviceaccounts --show-labels=true"
+      cmd "oc get all --show-labels=true"
     ;;
 
     import-docker-image-busy-box)
@@ -226,16 +259,34 @@ function openshift() {
     #
     # --- frameworks ---
     #
-    deploy-gitlab-pod)
-      oc adm policy add-scc-to-group anyuid system:authenticated
-      oc create -f templates/gitlab-pod.yml
-      oc adm policy add-scc-to-user anyuid system:serviceaccount:default:gitlab-user
+    gitlab-deploy)
+      GITLAB_PROJECT=gitlab
+      GITLAB_SA=gitlab
+      #oc adm policy add-scc-to-group anyuid system:authenticated
+      oc new-project ${GITLAB_PROJECT}
+      oc project ${GITLAB_PROJECT}
+      # create service account
+      oc create sa ${GITLAB_SA}
+      # This pod run as root
+      oc adm policy add-scc-to-user anyuid system:serviceaccount:${GITLAB_PROJECT}:${GITLAB_SA}
+      # Allow gitlab sa to admin project gitlab (TO BE CHECKED!!!)
+      oc policy add-role-to-user admin system:serviceaccounts:${GITLAB_PROJECT}:${GITLAB_SA}
+      oc new-app -f templates/gitlab-pod.yml --param=APPLICATION_HOSTNAME=gitlab.127.0.0.1.nip.io --param=SERVICE_ACCOUNT=${GITLAB_SA}
+      # vagrant oc create -f templates/gitlab-pod.yml --param=APPLICATION_HOSTNAME=gitlab.192.168.50.101.nip.io
+      #oc adm policy add-scc-to-user anyuid system:serviceaccount:default:gitlab-user
     ;;
-    delete-gitlab-pod)
-      oc delete -f templates/gitlab-pod.yml
+    gitlab-delete)
+      GITLAB_PROJECT=gitlab
+      GITLAB_SA=gitlab
+      oc project ${GITLAB_PROJECT}
+      oc delete all -l createdBy=gitlab-template
+
+    ;;
+    gitlab-create-project)
+      oc 
     ;;
     # TODO need to create nfs volume manually since dynamic volume claim doesn't support nfs
-    deploy-gitlab)
+    gitlab-full-deploy)
       oc create -f  templates/gitlab-volumes.yml
       oc new-app --file=${SCRIPT_PATH}/../templates/gitlab.json \
          -l rndid=gitlab-ce \
@@ -245,7 +296,7 @@ function openshift() {
       # https://about.gitlab.com/2016/06/28/get-started-with-openshift-origin-3-and-gitlab/#current-limitations
       oc adm policy add-scc-to-user anyuid system:serviceaccount:default:gitlab-ce-user
     ;;
-    delete-gitlab)
+    gitlab-full-delete)
       oc delete -f  templates/gitlab-volumes.yml
       oc delete all -l rndid=gitlab-ce
       oc delete pvc -l rndid=gitlab-ce
@@ -262,6 +313,18 @@ function openshift() {
 # --------- Openshift --- Install ----------------------------------------------
 #
 
+function openshiftInstallDocker() {
+  # Prerequisites
+  command -v docker >/dev/null 2>&1 || {
+    echo " * ERROR: install docker and retry!"
+    exit 1
+  }
+  command -v socat >/dev/null 2>&1 || {
+    echo " * Install brew socat"
+    brew install socat
+  }
+  echo " * Edit docker insecure registry and add '172.30.0.0/16' "
+}
 
 function openshiftWebConsole(){
   URL=$( oc config current-context | tr '\t' ' ' |  sed -n 's/[^\/]*\/\([^/]*\)\/.*/\1/p' | tr '-' '.')
