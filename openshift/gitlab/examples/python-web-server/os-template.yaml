@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Template
+metadata:
+  name: python-web-server
+labels:
+  createdBy: gitlab-ci-python-web-server
+  ciServer: gitlab
+parameters:
+- name: SERVICE_ACCOUNT
+  description: k8s service account
+  value: gitlab
+- name: APPLICATION_HOSTNAME
+  description: Hostname for service routes
+  value: gitlab-ci-python-web-server.127.0.0.1.nip.io
+- name: GITLAB_ENV
+  description: Gitlab ENV
+  value: test  
+objects:  
+- apiVersion: v1
+  kind: Pod
+  metadata:
+    name: gitlab-ci-python-web-server
+    labels:
+      name: gitlab-ci-python-web-server
+      app: "${GITLAB_ENV}"
+  spec:
+    containers:
+      - name: gitlab-ci-python-web-server
+        image: docker.io/openshift/origin-cli:latest
+        serviceAccount: "${SERVICE_ACCOUNT}"
+        command: ["/bin/sh"]
+        args: ["-c", "python -m SimpleHTTPServer 8000"]    
+        ports:
+          - name: http
+            containerPort: 8000
+        # resources:
+        #   limits:
+        #     cpu: 750m
+        #   requests:
+        #     cpu: 750m
+
+- kind: Service
+  apiVersion: v1
+  metadata:
+    name: gitlab-ci-python-web-server
+    labels:
+      name: gitlab-ci-python-web-server
+  spec:
+    ports:
+    - name: 80-http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
+    selector:
+      name: gitlab-ci-python-web-server
+    type: ClusterIP
+    sessionAffinity: None
+- apiVersion: v1
+  kind: Route
+  metadata:
+    name: gitlab-ci-python-web-server
+    labels:
+      name: gitlab-ci-python-web-server
+  spec:
+    host: "${APPLICATION_HOSTNAME}"
+    to:
+      kind: Service
+      name: gitlab-ci-python-web-server
+    port:
+      targetPort: 80-http
+

@@ -33,11 +33,11 @@ objects:
   spec:
     containers:
       - name: gitlab-server
-        image: docker.io/gitlab/gitlab-ce:latest
+        image: docker.io/gitlab/gitlab-ce:11.0.1-ce.0
         serviceAccount: "${SERVICE_ACCOUNT}"
         env:
         - name: GITLAB_OMNIBUS_CONFIG
-          value: "hostname='${APPLICATION_HOSTNAME}'; external_url \"http://#{hostname}/\" unless hostname.to_s == '';  root_pass='${GITLAB_ROOT_PASSWORD}'; prometheus_monitoring['enable'] = false;"
+          value: "hostname='gitlab-service.gitlab.svc'; external_url \"http://${APPLICATION_HOSTNAME}/\" unless hostname.to_s == '';  gitlab_rails['initial_root_password']=\"${GITLAB_ROOT_PASSWORD}\"; prometheus_monitoring['enable'] = false;"
         # command: ["/bin/sh"]
         # args: ["-c", "while true; do msg=\"$(date) hello\" && echo $msg && echo $msg >> /mnt/nfsvol/test.log; sleep 10;done"]    
         ports:
