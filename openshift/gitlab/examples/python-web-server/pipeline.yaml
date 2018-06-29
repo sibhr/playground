@@ -1,0 +1,24 @@
+image: docker.io/openshift/origin-cli:latest
+stages:
+  - build
+  - deploy
+
+build:
+  stage: build
+  script: 
+  - echo "Building the app"
+  - printenv | sort
+  - oc login --insecure-skip-tls-verify=true  -p admin -u admin ${KUBERNETES_PORT_443_TCP_ADDR}:${KUBERNETES_PORT_443_TCP_PORT} 
+  - oc status
+
+deploy_staging:
+  stage: deploy
+  script:
+    - echo "Deploy to staging server"
+    - oc login --insecure-skip-tls-verify=true  -p admin -u admin ${KUBERNETES_PORT_443_TCP_ADDR}:${KUBERNETES_PORT_443_TCP_PORT}
+    - oc new-app -f os-template.yaml -n gitlab --param=APPLICATION_HOSTNAME=gitlab-example-python-web-server-deploy.192.168.99.102.nip.io --param=GITLAB_ENV=${CI_ENVIRONMENT_SLUG}
+  environment:
+    name: staging
+    url: http://gitlab-example-python-web-server-deploy.192.168.99.102.nip.io/
+  only:
+  - master

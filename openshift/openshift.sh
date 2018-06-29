@@ -199,7 +199,7 @@ function openshift() {
     # --- Custom examples ---
     #
 
-    example-scala-hello-world)
+    example-deploy-scala-hello-world)
       oc login -u developer
       echo " * Delete scala-hello-world"
       #oc delete
@@ -220,19 +220,19 @@ function openshift() {
     #
     # --- Openshift examples ---
     #
-    create-nfs-example)
+    example-deploy-nfs)
       oc create -f ${SCRIPT_PATH}/templates/nfs-pv.yml
       oc create -f ${SCRIPT_PATH}/templates/nfs-pvc.yml
       #oc create -f ${SCRIPT_PATH}/templates/nfs-nginx.yml
       oc create -f ${SCRIPT_PATH}/templates/nfs-rhel.yml
     ;;
-    delete-nfs-example)
+    example-delete-nfs)
       oc delete -f ${SCRIPT_PATH}/templates/nfs-pv.yml
       oc delete -f ${SCRIPT_PATH}/templates/nfs-pvc.yml
       #oc delete -f ${SCRIPT_PATH}/templates/nfs-nginx.yml
       oc delete -f ${SCRIPT_PATH}/templates/nfs-rhel.yml
     ;;    
-    create-example-nodejs)
+    example-deploy-nodejs)
       echo " * Start node example from git repo (use s2i)"
       oc new-app https://github.com/openshift/nodejs-ex -l name=nodejs-example
       echo " * Follow build logs"
@@ -240,12 +240,12 @@ function openshift() {
       echo " * Expose route to outside"
       oc expose svc/nodejs-ex
     ;;
-    delete-example-nodejs)
+    example-delete-nodejs)
       # use label selector to delete
       echo " * Delete all objects"
       oc delete all -l name=nodejs-example
     ;;
-    create-example-nginx)
+    example-deploy-nginx)
       echo " * Start node example from git repo (use s2i)"
       oc new-app -f https://raw.githubusercontent.com/sclorg/nginx-ex/master/openshift/templates/nginx.json -l name=nginx-example
       echo " * Follow build logs"
@@ -253,12 +253,12 @@ function openshift() {
       echo " * Expose route to outside"
       oc expose svc/nodejs-ex
     ;;
-    delete-example-nginx)
+    example-delete-nginx)
       # use label selector to delete
       echo " * Delete all objects"
       oc delete all -l name=nginx-example
     ;;
-    example-local-storage-build)
+    example-deploy-local-storage)
       echo " * Build and deploy local storage template -> https://github.com/openshift/origin/blob/master/examples/storage-examples/local-storage-examples/local-nginx-pod.json"
       oc login -u system:admin
       echo " * Add security context to developer (required to create volumes)"
@@ -268,91 +268,10 @@ function openshift() {
       oc login --username=developer --password=developer
       oc create -f https://raw.githubusercontent.com/openshift/origin/master/examples/storage-examples/local-storage-examples/local-nginx-pod.json
     ;;
-
-
-    #
-    # --- GITLAB DEPLOY  ---
-    #
-    gitlab-deploy)
-      GITLAB_PROJECT=gitlab
-      GITLAB_SA=gitlab
-      #oc adm policy add-scc-to-group anyuid system:authenticated
-      #oc adm policy add-scc-to-group privileged system:authenticated
-      oc new-project ${GITLAB_PROJECT}
-      oc project ${GITLAB_PROJECT}
-      # create service account
-      oc create sa ${GITLAB_SA}
-      # This pod run as root
-      oc adm policy add-scc-to-user anyuid system:serviceaccount:${GITLAB_PROJECT}:${GITLAB_SA}
-      # Allow gitlab sa to admin project gitlab (TO BE CHECKED!!!)
-      # DOES NOT WORK!!!!! oc policy add-role-to-user admin system:serviceaccounts:${GITLAB_PROJECT}:${GITLAB_SA}
-      oc policy add-role-to-user admin -z ${GITLAB_SA}
-      # Get sa token
-      TOKEN=$(oc sa get-token gitlab)
-      oc new-app --token="${TOKEN}" -f ${SCRIPT_PATH}/gitlab/deploy/gitlab-pod.yml --param=APPLICATION_HOSTNAME=gitlab.${OPENSHIFT_HOSTNAME}.nip.io --param=SERVICE_ACCOUNT=${GITLAB_SA} -l rndid=gitlab-ce
-      # vagrant oc create -f ${SCRIPT_PATH}/gitlab/deploy/gitlab-pod.yml --param=APPLICATION_HOSTNAME=gitlab.192.168.50.101.nip.io
-      #oc adm policy add-scc-to-user anyuid system:serviceaccount:default:gitlab-user
-    ;;
-    gitlab-k8s-integration-create)
-      oc new-project gitlab-managed-apps
-      oc project gitlab-managed-apps
-      oc create sa gitlab-managed-apps
-      oc policy add-role-to-user admin -z gitlab-managed-apps
-      oc adm policy add-scc-to-user anyuid system:serviceaccount:gitlab-managed-apps:gitlab-managed-apps
-      oc policy add-role-to-user admin system:serviceaccount:gitlab-managed-apps:default
-      oc adm policy add-cluster-role-to-user cluster-admin system:serviceaccount:gitlab-managed-apps:default
-      oc sa get-token gitlab-managed-apps
-      # Gitlab runner need to be priviledged
-      oc adm policy add-scc-to-group privileged system:authenticated
-      # Need to edit hel chart yaml inside gitlab pod running
-      
-    ;;
-    gitlab-k8s-integration-delete)
-      oc delete project gitlab-managed-apps # --force=true --grace-period=0
-      oc delete clusterrole.rbac ingress-nginx-ingress
-      oc delete clusterrolebindings.rbac ingress-nginx-ingress
-    ;;
-    gitlab-helm)
-       PORT=$(oc get svc/tiller-deploy -o jsonpath='{.spec.ports[0].port}' -n gitlab-managed-apps)
-       OS_HOSTNAME=$(oc config current-context | cut -d/ -f2 | cut -d: -f1 | tr - .)
-       TILLER_HOST="${OS_HOSTNAME}:${PORT}"
-       oc expose deploy/tiller-deploy --target-port=tiller --type=NodePort --name=tiller -n gitlab-managed-apps
-       # need to login to docker, route node ports are exposed on docker0 inteface, but this is not reachable from mac os
-    ;;
-    gitlab-delete)
-      GITLAB_PROJECT=gitlab
-      GITLAB_SA=gitlab
-      oc delete project ${GITLAB_PROJECT}
+    example-delete-local-storage)
+      echo "to do..."
     ;;
 
-    # TODO need to create nfs volume manually since dynamic volume claim doesn't support nfs
-    gitlab-full-deploy)
-      oc create -f  ${SCRIPT_PATH}/gitlab/deploy/gitlab-volumes.yml
-      oc new-app --file=${SCRIPT_PATH}/gitlab/deploy/gitlab-full.json \
-         -l rndid=gitlab-ce \
-         --param=APPLICATION_HOSTNAME=gitlab.192.168.50.101.nip.io \
-         --param=GITLAB_ROOT_PASSWORD=password
-      # Allow to run docker with root user 
-      # https://about.gitlab.com/2016/06/28/get-started-with-openshift-origin-3-and-gitlab/#current-limitations
-      oc adm policy add-scc-to-user anyuid system:serviceaccount:default:gitlab-ce-user
-    ;;
-    gitlab-full-delete)
-      oc delete -f  ${SCRIPT_PATH}/gitlab/deploy/gitlab-volumes.yml
-      oc delete all -l rndid=gitlab-ce
-      oc delete pvc -l rndid=gitlab-ce
-      oc delete serviceaccounts gitlab-ce-user
-    ;;
-    #
-    # --- GITLAB EXAMPES  ---
-    #
-    gitlab-example-python-web-server-deploy)
-      oc new-app -f ${SCRIPT_PATH}/gitlab/examples/python-web-server/os-template.yaml -n gitlab \
-      --param=APPLICATION_HOSTNAME=gitlab-example-python-web-server-deploy.${OPENSHIFT_HOSTNAME}.nip.io \
-      --param=GITLAB_ENV=staging
-    ;;
-    gitlab-example-python-web-server-delete)
-      oc delete all -l createdBy=gitlab-ci-python-web-server -n gitlab
-    ;;
     *) usage; exit 0 ;;
   esac
 
