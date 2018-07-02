@@ -100,7 +100,7 @@ declare OPENSHIFT_VAGRANT_MASTER="centos-01"
 declare OPENSHIFT_VAGRANT_CLUSTER_URL="https://${OPENSHIFT_VAGRANT_MASTER}:8443"
 declare OPENSHIFT_DOCKER_CLUSTER_URL="https://127.0.0.1:8443"
 
-OPENSHIFT_HOSTNAME=$(oc config current-context | cut -d/ -f2 | cut -d: -f1 | tr - .)
+declare OPENSHIFT_HOSTNAME=$(oc config current-context | cut -d/ -f2 | cut -d: -f1 | tr - .)
 
 # Set last version to solve issue https://github.com/openshift/origin/pull/13204
 declare OPENSHIFT_CLUSTER_DOCKER_VERSION="v3.9.0"
@@ -110,7 +110,8 @@ function openshift() {
     minishift-up)
       brew cask install minishift
       minishift addon enable admin-user
-      minishift start --vm-driver virtualbox --memory 4GB
+      minishift addon enable registry-route
+      minishift start --vm-driver virtualbox --memory 4GB ## --routing-suffix TODO
     ;;
     minishift-login-admin)
       oc login -u admin -p admin --server=https://$( minishift ip ):8443 --insecure-skip-tls-verify --loglevel 5
@@ -192,7 +193,17 @@ function openshift() {
     ;;
 
     import-docker-image-busy-box)
-      oc import-image tools/busysbox:latest --from=docker.io/library/busybox:latest --confirm
+      oc import-image default/busysbox:latest --from=docker.io/library/busybox:latest --confirm
+    ;;
+
+    registry-console-deploy)
+      # From https://docs.openshift.org/latest/install_config/registry/deploy_registry_existing_clusters.html#deploying-the-registry-console
+      oc create -n default -f https://raw.githubusercontent.com/openshift/openshift-ansible/release-3.9/roles/openshift_hosted_templates/files/v3.9/origin/registry-console.yaml
+      oc create route passthrough --service registry-console --port registry-console -n default
+      oc new-app -n default --template=registry-console \
+          -p OPENSHIFT_OAUTH_PROVIDER_URL="https://${OPENSHIFT_HOSTNAME}:8443" \
+          -p REGISTRY_HOST=$(oc get route docker-registry -n default --template='{{ .spec.host }}') \
+          -p COCKPIT_KUBE_URL=$(oc get route registry-console -n default --template='https://{{ .spec.host }}')
     ;;
 
     #

@@ -56,29 +56,35 @@ declare OPENSHIFT_HOSTNAME=$(oc config current-context | cut -d/ -f2 | cut -d: -
 declare OPENSHIFT_NAMESPACE="jupyter"
 declare OPENSHIFT_SERVICE_ACCOUNT="jupyter"
 declare OPENSHIFT_APP="jupyter"
-declare OPENSHIFT_REGISTRY=$(minishift openshift registry)
+declare OPENSHIFT_REGISTRY=$(oc get route docker-registry  -n default -o jsonpath='{.spec.host}')
+declare DOCKER_REGISTRY=$(oc get svc docker-registry  -n default -o jsonpath='{.spec.clusterIP}')
 
 function parse() {
   case $PARAM in
     build)
-      #minishift addons apply  registry-route
-      docker build -f ${SCRIPT_PATH}/Dockerfile -t openshift/jupyter ${SCRIPT_PATH}
-      docker tag openshift/jupyter:latest ${OPENSHIFT_REGISTRY}/openshift/jupyter:latest
-      docker login -u admin -p $(oc whoami -t) ${OPENSHIFT_REGISTRY}
-      docker push ${OPENSHIFT_REGISTRY}/openshift/jupyter:latest
-    ;;
-    deploy)
+      # --- Create account
       oc new-project ${OPENSHIFT_NAMESPACE}
       oc project  ${OPENSHIFT_NAMESPACE}
       oc create sa ${OPENSHIFT_SERVICE_ACCOUNT}
-      #oc policy add-role-to-user admin system:serviceaccounts:${OPENSHIFT_NAMESPACE}:${OPENSHIFT_SERVICE_ACCOUNT}
-      oc policy add-role-to-user admin -z ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE}
+      oc policy add-role-to-user system:image-builder  system:serviceaccount:${OPENSHIFT_NAMESPACE}:${OPENSHIFT_SERVICE_ACCOUNT}
       TOKEN=$(oc sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
-      TOKEN=$(oc whoami -t)
-      oc new-app --token="${TOKEN}" -f ${SCRIPT_PATH}/os-template.yaml \
+      # --- Build docker
+      IMAGE="${OPENSHIFT_REGISTRY}/${OPENSHIFT_NAMESPACE}/${OPENSHIFT_APP}:latest"
+      docker build -f ${SCRIPT_PATH}/Dockerfile -t ${IMAGE} ${SCRIPT_PATH}
+      docker login -u developer -p "${TOKEN}" ${OPENSHIFT_REGISTRY} 
+      docker push ${IMAGE}
+    ;;
+    deploy)  
+      # --- Deploy app
+      # Need to have permission on processedtemplates.template.openshift.io
+      oc policy add-role-to-user admin -z ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE}
+      # Need to access nvidia socket
+      oc adm policy add-scc-to-user privileged -z ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE}
+      TOKEN=$(oc sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
+      oc new-app --token="${TOKEN}" \
+      -f ${SCRIPT_PATH}/os-template.yaml \
       --param=APP_NAME=${OPENSHIFT_APP}  \
-      --param=APP_HOSTNAME=${OPENSHIFT_APP}.${OPENSHIFT_HOSTNAME}.nip.io \
-      --param=SERVICE_ACCOUNT=${OPENSHIFT_SERVICE_ACCOUNT}  \
+      --param=DOCKER_REGISTRY=${DOCKER_REGISTRY}  \
       -l rndid=${OPENSHIFT_APP}
     ;;
     delete)

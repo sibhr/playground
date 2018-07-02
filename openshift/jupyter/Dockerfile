@@ -6,6 +6,7 @@ ARG CENTOS_VERSION="7"
 ARG CUDA_VERSION="8.0"
 ARG CUDNN_VERSION="7"
 FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-devel-centos${CENTOS_VERSION}
+#FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-runtime-centos${CENTOS_VERSION}
 
 ENV PYTHON_VERSION="3.6.4"
 
@@ -37,6 +38,8 @@ RUN mkdir -p ${APP_ROOT}/bin && \
     chmod -R g=u ${APP_ROOT}
 
 ### Containers should NOT run as root as a good practice
+ENV HOME=${APP_ROOT}
 USER 10001
 WORKDIR ${APP_ROOT}
+RUN jupyter notebook --generate-config
 
