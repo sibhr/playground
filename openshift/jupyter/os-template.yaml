@@ -12,7 +12,8 @@ parameters:
   value: jupyter
 - name: DOCKER_REGISTRY
   description: App name
-  value: docker-registry.default.svc
+  value: docker-registry.default.svc 
+  #docker-registry.default.svc.cluster.local
 
 objects:  
 - apiVersion: v1

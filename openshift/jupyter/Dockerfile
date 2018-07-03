@@ -5,8 +5,16 @@
 ARG CENTOS_VERSION="7"
 ARG CUDA_VERSION="8.0"
 ARG CUDNN_VERSION="7"
-FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-devel-centos${CENTOS_VERSION}
-#FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-runtime-centos${CENTOS_VERSION}
+#FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-devel-centos${CENTOS_VERSION}
+FROM nvidia/cuda:${CUDA_VERSION}-cudnn${CUDNN_VERSION}-runtime-centos${CENTOS_VERSION}
+
+### Setup user for build execution and application runtime
+ENV APP_ROOT=/opt/jupyter \
+    USER_NAME=default \
+    USER_UID=10001
+
+
+### Install python
 
 ENV PYTHON_VERSION="3.6.4"
 
@@ -19,16 +27,24 @@ RUN echo -e "\n ### ### ### Python 3 from source  ### ### ###  \n" && \
     make && \
     make install && \
     yum -y remove zlib-devel gcc make openssl openssl-devel sqlite-devel && \
-    rm -rf /opt/Python-${PYTHON_VERSION}
+    rm -rf /opt/Python-${PYTHON_VERSION} && \
+    # Allow random user to install packages \
+    chown -R ${USER_UID}:0 /usr/local/lib/python3.6 && \
+    chmod -R g=u /usr/local/lib/python3.6   && \
+    chown -R ${USER_UID}:0 /usr/local/bin && \
+    chmod -R g=u /usr/local/bin
+
+WORKDIR ${APP_ROOT}
+ENV HOME=${APP_ROOT}
 
 RUN pip3 install --upgrade pip && \
     pip3 install jupyter && \
-    pip3 install torch torchvision
+    pip3 install torch torchvision && \
+    jupyter notebook --generate-config && \
+    echo "{ \"NotebookApp\": { \"password\": \"sha1:85752bb87e1b:99d92e363277fcc0a25e82accb646775e1e03dea\" } } " > ${APP_ROOT}/.jupyter/jupyter_notebook_config.json
 
-### Setup user for build execution and application runtime
-ENV APP_ROOT=/opt/jupyter \
-    USER_NAME=default \
-    USER_UID=10001
+### Containers should NOT run as root as a good practice
+
 #ENV PATH=${APP_ROOT}/bin:${PATH} HOME=${APP_ROOT}
 #COPY bin/ ${APP_ROOT}/bin/
 RUN mkdir -p ${APP_ROOT}/bin && \
@@ -37,9 +53,4 @@ RUN mkdir -p ${APP_ROOT}/bin && \
     chown -R ${USER_UID}:0 ${APP_ROOT} && \
     chmod -R g=u ${APP_ROOT}
 
-### Containers should NOT run as root as a good practice
-ENV HOME=${APP_ROOT}
-USER 10001
-WORKDIR ${APP_ROOT}
-RUN jupyter notebook --generate-config
-
+USER ${USER_UID}

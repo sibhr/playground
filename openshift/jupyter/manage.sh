@@ -34,6 +34,74 @@ function parseCli(){
     esac
     shift
   done
+}
+
+#
+# --------- Openshift ----------------------------------------------------------
+#
+declare OPENSHIFT_NAMESPACE="jupyter"
+declare OPENSHIFT_SERVICE_ACCOUNT="jupyter"
+declare OPENSHIFT_APP="jupyter"
+
+function parse() {
+  declare OPENSHIFT_HOSTNAME=$(occontext config current-context | cut -d/ -f2 | cut -d: -f1 | tr - .)
+  declare OPENSHIFT_REGISTRY=$(occontext get route docker-registry  -n default -o jsonpath='{.spec.host}')
+  declare DOCKER_REGISTRY=$(occontext get svc docker-registry  -n default -o jsonpath='{.spec.clusterIP}')
+  case $PARAM in
+    test)
+      A=$(occontext projects)
+      echo $A
+    
+    ;;
+    simple-config)
+      # --- Create account
+      occontext new-project ${OPENSHIFT_NAMESPACE}
+      occontext project  ${OPENSHIFT_NAMESPACE}
+      occontext create sa ${OPENSHIFT_SERVICE_ACCOUNT}
+      # occontext policy add-role-to-user system:image-builder  system:serviceaccount:${OPENSHIFT_NAMESPACE}:${OPENSHIFT_SERVICE_ACCOUNT}
+      # Need to have permission on processedtemplates.template.openshift.io
+      occontext policy add-role-to-user admin -z ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE}
+      # Need to access nvidia socket
+      occontext adm policy add-scc-to-user privileged -z ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE}
+    ;;
+    simple-build)
+      # --- Build docker
+      TOKEN=$(occontext sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
+      IMAGE="${OPENSHIFT_REGISTRY}/${OPENSHIFT_NAMESPACE}/${OPENSHIFT_APP}:latest"
+      docker build -f ${SCRIPT_PATH}/Dockerfile -t ${IMAGE} ${SCRIPT_PATH}
+      docker login -u developer -p "${TOKEN}" ${OPENSHIFT_REGISTRY} 
+      docker push ${IMAGE}
+    ;;
+    simple-deploy)  
+      # --- Deploy app
+      TOKEN=$(occontext sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
+      occontext new-app --token="${TOKEN}" \
+      -f ${SCRIPT_PATH}/os-template.yaml \
+      --param=APP_NAME=${OPENSHIFT_APP}  \
+      --param=DOCKER_REGISTRY=${DOCKER_REGISTRY}  \
+      -l rndid=${OPENSHIFT_APP}
+    ;;
+    simple-delete)
+      occontext delete all -l rndid=${OPENSHIFT_APP} -n ${OPENSHIFT_NAMESPACE}
+    ;;
+    hub-config)
+      TOKEN=$(occontext sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
+      occontext create --token="${TOKEN}" -f https://raw.githubusercontent.com/jupyter-on-openshift/jupyter-notebooks/master/images.json -n ${OPENSHIFT_NAMESPACE}
+      occontext logs --token="${TOKEN}" --follow bc/s2i-minimal-notebook
+      occontext create --token="${TOKEN}" -f https://raw.githubusercontent.com/jupyter-on-openshift/jupyterhub-quickstart/master/images.json -n ${OPENSHIFT_NAMESPACE}
+      occontext logs --token="${TOKEN}" --follow bc/jupyterhub
+      occontext create --token="${TOKEN}" -f https://raw.githubusercontent.com/jupyter-on-openshift/jupyterhub-quickstart/master/templates.json
+    ;;
+    hub-deploy)
+      # https://github.com/jupyter-on-openshift/jupyterhub-quickstart#customising-the-jupyterhub-deployment
+      TOKEN=$(occontext sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
+      occontext new-app --template jupyterhub-deployer --token="${TOKEN}"
+    ;;
+    hub-delete)
+      occontext delete all,configmap,pvc,serviceaccount,rolebinding --selector app=jupyterhub -n ${OPENSHIFT_NAMESPACE}
+    ;;
+    *) usage; exit 0 ;;
+  esac
 
 }
 
@@ -49,51 +117,15 @@ function usage {
   echo
 }
 
-#
-# --------- Openshift ----------------------------------------------------------
-#
-declare OPENSHIFT_HOSTNAME=$(oc config current-context | cut -d/ -f2 | cut -d: -f1 | tr - .)
-declare OPENSHIFT_NAMESPACE="jupyter"
-declare OPENSHIFT_SERVICE_ACCOUNT="jupyter"
-declare OPENSHIFT_APP="jupyter"
-declare OPENSHIFT_REGISTRY=$(oc get route docker-registry  -n default -o jsonpath='{.spec.host}')
-declare DOCKER_REGISTRY=$(oc get svc docker-registry  -n default -o jsonpath='{.spec.clusterIP}')
-
-function parse() {
-  case $PARAM in
-    build)
-      # --- Create account
-      oc new-project ${OPENSHIFT_NAMESPACE}
-      oc project  ${OPENSHIFT_NAMESPACE}
-      oc create sa ${OPENSHIFT_SERVICE_ACCOUNT}
-      oc policy add-role-to-user system:image-builder  system:serviceaccount:${OPENSHIFT_NAMESPACE}:${OPENSHIFT_SERVICE_ACCOUNT}
-      TOKEN=$(oc sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
-      # --- Build docker
-      IMAGE="${OPENSHIFT_REGISTRY}/${OPENSHIFT_NAMESPACE}/${OPENSHIFT_APP}:latest"
-      docker build -f ${SCRIPT_PATH}/Dockerfile -t ${IMAGE} ${SCRIPT_PATH}
-      docker login -u developer -p "${TOKEN}" ${OPENSHIFT_REGISTRY} 
-      docker push ${IMAGE}
-    ;;
-    deploy)  
-      # --- Deploy app
-      # Need to have permission on processedtemplates.template.openshift.io
-      oc policy add-role-to-user admin -z ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE}
-      # Need to access nvidia socket
-      oc adm policy add-scc-to-user privileged -z ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE}
-      TOKEN=$(oc sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
-      oc new-app --token="${TOKEN}" \
-      -f ${SCRIPT_PATH}/os-template.yaml \
-      --param=APP_NAME=${OPENSHIFT_APP}  \
-      --param=DOCKER_REGISTRY=${DOCKER_REGISTRY}  \
-      -l rndid=${OPENSHIFT_APP}
-    ;;
-    delete)
-      oc delete all -l rndid=jupyter -n ${OPENSHIFT_NAMESPACE}
-    ;;
-
-    *) usage; exit 0 ;;
-  esac
-
+# @info:	Check default OS context
+function occontext {
+  if [[ ! -z "${OS_CONTEXT}" ]]; then
+    #echo "!!! Found OS_CONTEXT env: ${OS_CONTEXT} !!!"
+    #oc whoami --context=$OS_CONTEXT || exit 1
+    oc --context=$OS_CONTEXT "$@"
+  else
+    oc "$@"
+  fi
 }
 
 
