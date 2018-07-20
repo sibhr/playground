@@ -1,0 +1,17 @@
+apiVersion: skaffold/v1alpha2
+kind: Config
+build:
+  tagPolicy:
+    envTemplate:
+      template: "docker-registry-default.192.168.99.100.nip.io/examples/skaffold-example:latest"
+  artifacts:
+  - imageName: docker-registry-default.192.168.99.100.nip.io/examples/skaffold-example
+deploy:
+  kubectl:
+    manifests:
+      - k8s-*
+profiles:
+  - name: gcb
+    build:
+      googleCloudBuild:
+        projectId: k8s-skaffold

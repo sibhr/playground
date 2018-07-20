@@ -100,22 +100,31 @@ declare OPENSHIFT_VAGRANT_MASTER="centos-01"
 declare OPENSHIFT_VAGRANT_CLUSTER_URL="https://${OPENSHIFT_VAGRANT_MASTER}:8443"
 declare OPENSHIFT_DOCKER_CLUSTER_URL="https://127.0.0.1:8443"
 
-declare OPENSHIFT_HOSTNAME=$(oc config current-context | cut -d/ -f2 | cut -d: -f1 | tr - .)
 
 # Set last version to solve issue https://github.com/openshift/origin/pull/13204
 declare OPENSHIFT_CLUSTER_DOCKER_VERSION="v3.9.0"
 
 function openshift() {
+  declare OPENSHIFT_HOSTNAME=$(occontext config current-context | cut -d/ -f2 | cut -d: -f1 | tr - .)
+  declare DOCKER_REGISTRY_ROUTE=$(occontext get route docker-registry  -n default -o jsonpath='{.spec.host}')
+  declare DOCKER_REGISTRY_IP=$(occontext get svc docker-registry  -n default -o jsonpath='{.spec.clusterIP}')
   case $PARAM_OPENSHIFT in
     minishift-up)
-      brew cask install minishift
+      brew cask upgrade minishift
       minishift addon enable admin-user
       minishift addon enable registry-route
       minishift start --vm-driver virtualbox --memory 4GB ## --routing-suffix TODO
     ;;
     minishift-login-admin)
-      oc login -u admin -p admin --server=https://$( minishift ip ):8443 --insecure-skip-tls-verify --loglevel 5
-      minishift console
+      SERVER="https://$( minishift ip ):8443"
+      echo " * Login to ${SERVER} with user:admin password:admin "
+      oc login -u admin -p admin --server=${SERVER} --insecure-skip-tls-verify --loglevel 5
+    ;;
+    minishift-info)
+      echo " * Minishift context: $(oc config current-context)"
+      echo " * Minishift ip: $( minishift ip) "
+      echo " * Docker registry route: ${DOCKER_REGISTRY_ROUTE}"
+      echo " * Docker registry internal pod ip: ${DOCKER_REGISTRY_IP}"
     ;;
     docker-up)
       command -v docker >/dev/null 2>&1 || {
@@ -205,6 +214,11 @@ function openshift() {
           -p REGISTRY_HOST=$(oc get route docker-registry -n default --template='{{ .spec.host }}') \
           -p COCKPIT_KUBE_URL=$(oc get route registry-console -n default --template='https://{{ .spec.host }}')
     ;;
+    registry-console-delete)
+      oc delete all -l createdBy=registry-console-template -n default
+      oc delete OAuthClient cockpit-oauth-client
+    ;;
+
 
     #
     # --- Custom examples ---
@@ -292,6 +306,16 @@ function openshift() {
 #
 # --------- Openshift --- Install ----------------------------------------------
 #
+# @info:	Check default OS context
+function occontext {
+  if [[ ! -z "${OS_CONTEXT}" ]]; then
+    #echo "!!! Found OS_CONTEXT env: ${OS_CONTEXT} !!!"
+    #oc whoami --context=$OS_CONTEXT || exit 1
+    oc --context=$OS_CONTEXT "$@"
+  else
+    oc "$@"
+  fi
+}
 
 function openshiftInstallDocker() {
   # Prerequisites

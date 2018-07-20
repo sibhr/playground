@@ -66,3 +66,7 @@ Ingress rbac error <https://gitlab.com/gitlab-org/gitlab-ce/issues/46969#install
 ### Docker images
 
 Openshift CLI image openshift/origin-cli <https://hub.docker.com/r/openshift/origin-cli/> It is based on CentOS
+
+## Minishift
+
+Docker registry login `docker login -u developer -p $(oc whoami -t) $(minishift openshift registry)`

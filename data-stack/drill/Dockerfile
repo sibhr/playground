@@ -4,6 +4,7 @@ FROM drill/apache-drill-centos:1.14.0-SNAPSHOT
 
 ENTRYPOINT []
 
-#CMD /bin/bash
+# Only for dev!
+CMD  /opt/drill/bin/drill-embedded 
 
-CMD  export DRILL_EMBEDDED=1 && /opt/drill/bin/drillbit.sh start && tail -f /opt/drill/
+# TODO: change logback to printo to stdoutput, experiment with authentication

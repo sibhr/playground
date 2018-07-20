@@ -39,9 +39,9 @@ function parseCli(){
 #
 # --------- Openshift ----------------------------------------------------------
 #
-declare OPENSHIFT_NAMESPACE="jupyter"
-declare OPENSHIFT_SERVICE_ACCOUNT="jupyter"
-declare OPENSHIFT_APP="jupyter"
+declare OPENSHIFT_NAMESPACE="examples"
+declare OPENSHIFT_SERVICE_ACCOUNT="examples"
+declare OPENSHIFT_APP="examples"
 
 function parse() {
   declare OPENSHIFT_HOSTNAME=$(occontext config current-context | cut -d/ -f2 | cut -d: -f1 | tr - .)
@@ -53,53 +53,44 @@ function parse() {
       echo $A
     
     ;;
-    simple-config)
+    namespace-config)
       # --- Create account
       occontext new-project ${OPENSHIFT_NAMESPACE}
       occontext project  ${OPENSHIFT_NAMESPACE}
       occontext create sa ${OPENSHIFT_SERVICE_ACCOUNT}
       # occontext policy add-role-to-user system:image-builder  system:serviceaccount:${OPENSHIFT_NAMESPACE}:${OPENSHIFT_SERVICE_ACCOUNT}
-      # Need to have permission on processedtemplates.template.openshift.io
+      # Need to have permission on processedtemplates.template.openshift.io and to push to registry
       occontext policy add-role-to-user admin -z ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE}
-      # Need to access nvidia socket
-      occontext adm policy add-scc-to-user privileged -z ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE}
     ;;
-    simple-build)
+    python-web-server-build)
       # --- Build docker
       TOKEN=$(occontext sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
-      IMAGE="${DOCKER_REGISTRY_ROUTE}/${OPENSHIFT_NAMESPACE}/${OPENSHIFT_APP}:latest"
-      docker build -f ${SCRIPT_PATH}/Dockerfile -t ${IMAGE} ${SCRIPT_PATH}
+      IMAGE="${DOCKER_REGISTRY_ROUTE}/${OPENSHIFT_NAMESPACE}/python-web-server:latest"
+      docker build -f ${SCRIPT_PATH}/python-web-server/Dockerfile -t ${IMAGE} ${SCRIPT_PATH}/python-web-server
       docker login -u developer -p "${TOKEN}" ${DOCKER_REGISTRY_ROUTE} 
       docker push ${IMAGE}
     ;;
-    simple-deploy)  
+    python-web-server-deploy)  
       # --- Deploy app
       TOKEN=$(occontext sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
       occontext new-app --token="${TOKEN}" \
-      -f ${SCRIPT_PATH}/os-template.yaml \
-      --param=APP_NAME=${OPENSHIFT_APP}  \
-      --param=DOCKER_REGISTRY=${DOCKER_REGISTRY_IP}  \
-      -l rndid=${OPENSHIFT_APP}
+      -f ${SCRIPT_PATH}/python-web-server/template.yaml \
+      --param=DOCKER_REGISTRY=${DOCKER_REGISTRY_IP}
     ;;
-    simple-delete)
-      occontext delete all -l rndid=${OPENSHIFT_APP} -n ${OPENSHIFT_NAMESPACE}
+    python-web-server-delete)
+      occontext delete all -l rndid=python-web-server -n ${OPENSHIFT_NAMESPACE}
     ;;
-    hub-config)
-      TOKEN=$(occontext sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
-      occontext create --token="${TOKEN}" -f https://raw.githubusercontent.com/jupyter-on-openshift/jupyter-notebooks/master/images.json -n ${OPENSHIFT_NAMESPACE}
-      occontext logs --token="${TOKEN}" --follow bc/s2i-minimal-notebook
-      occontext create --token="${TOKEN}" -f https://raw.githubusercontent.com/jupyter-on-openshift/jupyterhub-quickstart/master/images.json -n ${OPENSHIFT_NAMESPACE}
-      occontext logs --token="${TOKEN}" --follow bc/jupyterhub
-      occontext create --token="${TOKEN}" -f https://raw.githubusercontent.com/jupyter-on-openshift/jupyterhub-quickstart/master/templates.json
+    pytorch-operator)
+      # Poc https://github.com/kubeflow/pytorch-operator
+      # Install k8s schema
+      #brew install ksonnet/tap/ks
+      mkdir -p ${SCRIPT_PATH}/pytorch/ks
+      cd ${SCRIPT_PATH}/pytorch/ks
+      KS_APP="kubeflow"
+      ks init ${KS_APP}
     ;;
-    hub-deploy)
-      # https://github.com/jupyter-on-openshift/jupyterhub-quickstart#customising-the-jupyterhub-deployment
-      TOKEN=$(occontext sa get-token ${OPENSHIFT_SERVICE_ACCOUNT} -n ${OPENSHIFT_NAMESPACE} )
-      occontext new-app --template jupyterhub-deployer --token="${TOKEN}"
-    ;;
-    hub-delete)
-      occontext delete all,configmap,pvc,serviceaccount,rolebinding --selector app=jupyterhub -n ${OPENSHIFT_NAMESPACE}
-    ;;
+
+
     *) usage; exit 0 ;;
   esac
 
