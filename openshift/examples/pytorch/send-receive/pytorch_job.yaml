@@ -1,0 +1,27 @@
+# https://raw.githubusercontent.com/kubeflow/pytorch-operator/master/examples/dist-sendrecv/pytorch_job_sendrecv.yaml
+apiVersion: "kubeflow.org/v1alpha1"
+kind: "PyTorchJob"
+metadata:
+  name: "pytorch-send-receive"
+spec:
+  backend: "tcp"
+  masterPort: "23456"
+  replicaSpecs:
+    - replicas: 1
+      replicaType: MASTER
+      template:
+        spec:
+          containers:
+          - image: 172.30.1.1:5000/default/pytorch-send-receive:latest
+            imagePullPolicy: Always
+            name: pytorch
+          restartPolicy: OnFailure
+    - replicas: 3
+      replicaType: WORKER
+      template:
+        spec:
+          containers:
+          - image: 172.30.1.1:5000/default/pytorch-send-receive:latest
+            imagePullPolicy: Always
+            name: pytorch
+          restartPolicy: OnFailure

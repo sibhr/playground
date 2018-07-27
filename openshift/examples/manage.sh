@@ -80,7 +80,7 @@ function parse() {
     python-web-server-delete)
       occontext delete all -l rndid=python-web-server -n ${OPENSHIFT_NAMESPACE}
     ;;
-    pytorch-operator)
+    pytorch-operator-install)
       # Poc https://github.com/kubeflow/pytorch-operator
       # Install k8s schema
       #brew install ksonnet/tap/ks
@@ -88,9 +88,31 @@ function parse() {
       cd ${SCRIPT_PATH}/pytorch/ks
       KS_APP="kubeflow"
       ks init ${KS_APP}
+      cd ${SCRIPT_PATH}/pytorch/ks/${KS_APP}
+      ks registry add -o -v  kubeflow github.com/kubeflow/kubeflow/tree/v0.2.2/kubeflow
+      ks pkg install kubeflow/pytorch-job@master
+      ks prototype use io.ksonnet.pkg.pytorch-operator pytorch-operator \
+      --namespace default  --name pytorch-operator
+      ks prototype use io.ksonnet.pkg.pytorch-job pytorch-job \
+        --namespace default --name pytorch-job    
+
+      #As always relax all privileges
+      #https://github.com/kubeflow/kubeflow/pull/641
+      oc policy add-role-to-user cluster-admin -z pytorch-operator -n default
     ;;
-
-
+    pytorch-operator-send-receive-deploy)
+      OPENSHIFT_NAMESPACE="default"
+      TOKEN=$(occontext sa get-token pytorch-operator -n ${OPENSHIFT_NAMESPACE} )
+      IMAGE="${DOCKER_REGISTRY_ROUTE}/${OPENSHIFT_NAMESPACE}/pytorch-send-receive:latest"
+      docker build -f ${SCRIPT_PATH}/pytorch/send-receive/Dockerfile -t ${IMAGE} ${SCRIPT_PATH}/pytorch/send-receive
+      docker login -u developer -p "${TOKEN}" ${DOCKER_REGISTRY_ROUTE} 
+      docker push ${IMAGE}      
+      occontext create -f ${SCRIPT_PATH}/pytorch/send-receive/pytorch_job.yaml
+    ;;
+    pytorch-operator-send-receive-deploy)
+      OPENSHIFT_NAMESPACE="default"
+      occontext delete all -l pytorch_job_name=pytorch-send-receive -n ${OPENSHIFT_NAMESPACE}
+    ;;
     *) usage; exit 0 ;;
   esac
 
