@@ -113,6 +113,19 @@ function parse() {
       OPENSHIFT_NAMESPACE="default"
       occontext delete all -l pytorch_job_name=pytorch-send-receive -n ${OPENSHIFT_NAMESPACE}
     ;;
+    
+    example-deploy-nfs)
+      ${K8S_CMD} create -f ${SCRIPT_PATH}/templates/nfs-pv.yml
+      ${K8S_CMD} create -f ${SCRIPT_PATH}/templates/nfs-pvc.yml
+      #${K8S_CMD} create -f ${SCRIPT_PATH}/templates/nfs-nginx.yml
+      ${K8S_CMD} create -f ${SCRIPT_PATH}/templates/nfs-rhel.yml
+    ;;
+    example-delete-nfs)
+      ${K8S_CMD} delete -f ${SCRIPT_PATH}/templates/nfs-pv.yml
+      ${K8S_CMD} delete -f ${SCRIPT_PATH}/templates/nfs-pvc.yml
+      #${K8S_CMD} delete -f ${SCRIPT_PATH}/templates/nfs-nginx.yml
+      ${K8S_CMD} delete -f ${SCRIPT_PATH}/templates/nfs-rhel.yml
+    ;;       
     *) usage; exit 0 ;;
   esac
 
