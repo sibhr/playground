@@ -11,8 +11,6 @@ set -o pipefail # exit on any errors in piped commands
 
 #ENVIRONMENT VARIABLES
 
-# @info:	current version
-declare VERSION="1.0.0"
 declare SCRIPT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 declare CURRENT_PATH=$( pwd )
 
@@ -27,13 +25,8 @@ if [[ "$PLATFORM" != 'Darwin' ]]; then
 fi
 
 # Set context from env variable
-declare K8S_CMD="oc "
-if [[ ! -z "${K8S_CONTEXT}" ]]; then
-  echo "!!! Found K8S_CONTEXT env: ${K8S_CONTEXT} !!!"
-  USER=$(${K8S_CMD} whoami --context=aa$K8S_CONTEXT || kill $$)
-  echo "!!! Logged in user is: ${USER}"
-  K8S_CMD="${K8S_CMD} --context=$K8S_CONTEXT "
-fi
+declare OS_CMD="oc "
+
 
 declare PARAM_OPENSHIFT=''
 function parseCli(){
@@ -45,7 +38,6 @@ function parseCli(){
     val="$2"
     case $key in
       #openshift | os) PARAM_OPENSHIFT=$val; openshift; exit 0;;
-      -v | --version) version; exit 0 ;;
       -h | --help ) usage; exit 0 ;;
       *) PARAM_OPENSHIFT=$key; openshift; exit 0;;
     esac
@@ -81,7 +73,6 @@ function usage {
 #
 declare OPENSHIFT_VAGRANT_MASTER="centos-01"
 declare OPENSHIFT_VAGRANT_CLUSTER_URL="https://${OPENSHIFT_VAGRANT_MASTER}:8443"
-declare OPENSHIFT_DOCKER_CLUSTER_URL="https://127.0.0.1:8443"
 declare OPENSHIFT_VERSION="3.10.0"
 
 function openshift() {
@@ -103,11 +94,13 @@ function openshift() {
     minishift-login-admin)
       SERVER="https://$( minishift ip ):8443"
       echo " * Login to ${SERVER} with user:admin password:admin "
-      ${K8S_CMD} login -u admin -p admin --server=${SERVER} --insecure-skip-tls-verify --loglevel 5
+      ${OS_CMD} login -u admin -p admin --server=${SERVER} --insecure-skip-tls-verify --loglevel 5
     ;;
     minishift-info)
-      k8sParseContext
-      echo " * Minishift context: $(${K8S_CMD} config current-context)"
+      setEnvContext
+      DOCKER_REGISTRY_ROUTE=$(${OS_CMD} get route docker-registry  -n default -o jsonpath='{.spec.host}')
+      DOCKER_REGISTRY_IP=$(${OS_CMD} get svc docker-registry  -n default -o jsonpath='{.spec.clusterIP}')
+      echo " * Minishift current context: $(${OS_CMD} config current-context)"
       echo " * Minishift ip: $( minishift ip) "
       echo " * Docker registry route: ${DOCKER_REGISTRY_ROUTE}"
       echo " * Docker registry internal pod ip: ${DOCKER_REGISTRY_IP}"
@@ -115,8 +108,9 @@ function openshift() {
 
     #
     # --- Docker ---
+    # Only with openshift oc client
     #     
-    docker-up)
+    openshift-docker-up)
       command -v docker >/dev/null 2>&1 || {
         echo " * ERROR: install docker and retry!"
         exit 1
@@ -129,21 +123,20 @@ function openshift() {
       msg "Start up cluster with docker"
       # Sync internal docker clock with guest os
       cmd "docker run -it --rm --privileged --pid=host debian nsenter -t 1 -m -u -n -i date -u $(date -u +%m%d%H%M%Y)"
-      cmd "${K8S_CMD} cluster up --version=v${OPENSHIFT_VERSION} --http-proxy=docker.for.mac.http.internal:3128 --https-proxy=docker.for.mac.http.internal:3129"
+      cmd "oc cluster up --version=v${OPENSHIFT_VERSION} --http-proxy=docker.for.mac.http.internal:3128 --https-proxy=docker.for.mac.http.internal:3129"
       msg " !! IMPORTANT !! - If router and docker registry are not running: create admin user with this script, login and restart router and docker registry"
     ;;
-    docker-down)
+    openshift-docker-down)
       echo "Stop cluster"
-      #${K8S_CMD} login -u system:admin
-      #${K8S_CMD} config set-cluster 127-0-0-1:8443
-      ${K8S_CMD} cluster down
-      ${K8S_CMD} config delete-cluster 127-0-0-1:8443
+      oc cluster down
+      oc config delete-cluster 127-0-0-1:8443
     ;;
-    docker-login-admin)
-      ${K8S_CMD} login -u system:admin --server=${OPENSHIFT_DOCKER_CLUSTER_URL} --insecure-skip-tls-verify --loglevel 5
-      ${K8S_CMD} create user admin
-      ${K8S_CMD} adm policy add-cluster-role-to-user cluster-admin admin
-      ${K8S_CMD} login -u admin -p admin --server=${OPENSHIFT_DOCKER_CLUSTER_URL} --insecure-skip-tls-verify --loglevel 5
+    openshift-docker-login-admin)
+      declare OPENSHIFT_DOCKER_CLUSTER_URL="https://127.0.0.1:8443"
+      oc login -u system:admin --server=${OPENSHIFT_DOCKER_CLUSTER_URL} --insecure-skip-tls-verify --loglevel 5
+      oc create user admin
+      oc adm policy add-cluster-role-to-user cluster-admin admin
+      oc login -u admin -p admin --server=${OPENSHIFT_DOCKER_CLUSTER_URL} --insecure-skip-tls-verify --loglevel 5
     ;;
 
     #
@@ -151,73 +144,80 @@ function openshift() {
     #     
     # make user admin to be a real admin, must be run on a master node
     vagrant-acl-for-admin)
-      vagrant ssh ${OPENSHIFT_VAGRANT_MASTER} -c "${K8S_CMD} adm policy add-cluster-role-to-user cluster-admin admin"
+      vagrant ssh ${OPENSHIFT_VAGRANT_MASTER} -c "${OS_CMD} adm policy add-cluster-role-to-user cluster-admin admin"
     ;;
     # User admin password admin created at install time
     vagrant-login-admin)
-      ${K8S_CMD} login -u admin -p admin --server=${OPENSHIFT_VAGRANT_CLUSTER_URL} --insecure-skip-tls-verify --loglevel 5
+      ${OS_CMD} login -u admin -p admin --server=${OPENSHIFT_VAGRANT_CLUSTER_URL} --insecure-skip-tls-verify --loglevel 5
     ;;
 
     #
     # --- Common tasks ---
     # 
-    registry-console-deploy)
-      k8sParseContext
-      echo ${OPENSHIFT_HOSTNAME}
+    openshift-registry-console-deploy)
+      setEnvContext
+      OPENSHIFT_HOSTNAME=$(${OS_CMD} config current-context | cut -d/ -f2 | cut -d: -f1 | tr - .)
       # TODO: fix and update https://docs.openshift.com/container-platform/3.10/install_config/registry/deploy_registry_existing_clusters.html#registry-console
       # TODO: look for registry console 9.10....
       echo "TODO: Still using version 3.9 - Update registry console to version 3.10"
       # OLD 3.9 
-      ${K8S_CMD} create -n default -f https://raw.githubusercontent.com/openshift/openshift-ansible/release-3.9/roles/openshift_hosted_templates/files/v3.9/origin/registry-console.yaml
-      ${K8S_CMD} create route passthrough --service registry-console --port registry-console -n default
-      ${K8S_CMD} new-app -n default --template=registry-console \
+      ${OS_CMD} create -n default -f https://raw.githubusercontent.com/openshift/openshift-ansible/release-3.9/roles/openshift_hosted_templates/files/v3.9/origin/registry-console.yaml
+      ${OS_CMD} create route passthrough --service registry-console --port registry-console -n default
+      ${OS_CMD} new-app -n default --template=registry-console \
           -p OPENSHIFT_OAUTH_PROVIDER_URL="https://${OPENSHIFT_HOSTNAME}:8443" \
-          -p REGISTRY_HOST=$(${K8S_CMD} get route docker-registry -n default --template='{{ .spec.host }}') \
-          -p COCKPIT_KUBE_URL=$(${K8S_CMD} get route registry-console -n default --template='https://{{ .spec.host }}')
+          -p REGISTRY_HOST=$(${OS_CMD} get route docker-registry -n default --template='{{ .spec.host }}') \
+          -p COCKPIT_KUBE_URL=$(${OS_CMD} get route registry-console -n default --template='https://{{ .spec.host }}')
     ;;
 
-    registry-console-delete)
-      ${K8S_CMD} delete all -l createdBy=registry-console-template -n default
-      ${K8S_CMD} delete OAuthClient cockpit-oauth-client
+    openshift-registry-console-delete)
+      setEnvContext
+      ${OS_CMD} delete all -l createdBy=registry-console-template -n default
+      ${OS_CMD} delete OAuthClient cockpit-oauth-client
     ;;
     #
     # --- Common tasks ---
     # 
 
     create-user-developer)
-      ${K8S_CMD} create user developer
-      ${K8S_CMD} login --username=developer --password=developer
+      setEnvContext
+      ${OS_CMD} create user developer
+      ${OS_CMD} login --username=developer --password=developer
     ;;
 
     get-auth)
+      setEnvContext
       msg " * Get cluster user, roles and scc info"
-      cmd "${K8S_CMD} get scc"
-      cmd "${K8S_CMD} get roleBindings"
-      cmd "${K8S_CMD} get policyBindings"
-      cmd "${K8S_CMD} get clusterPolicyBindings"
-      cmd "${K8S_CMD} get user"
-      echo " To have more details run same commands with ${K8S_CMD} describe [scc | ...]"
+      cmd "${OS_CMD} get scc"
+      cmd "${OS_CMD} get roleBindings"
+      cmd "${OS_CMD} get policyBindings"
+      cmd "${OS_CMD} get clusterPolicyBindings"
+      cmd "${OS_CMD} get user"
+      echo " To have more details run same commands with ${OS_CMD} describe [scc | ...]"
     ;;
 
     get-all)
+      setEnvContext
       msg "Get templates"
-      cmd "${K8S_CMD} get templates --show-labels=true --all-namespaces=true"
+      cmd "${OS_CMD} get templates --show-labels=true --all-namespaces=true"
       msg "Get persistent volumes"
-      cmd "${K8S_CMD} get pv  --show-labels=true --all-namespaces=true"
+      cmd "${OS_CMD} get pv  --show-labels=true --all-namespaces=true"
       msg "Get persistent volume claims"
-      cmd "${K8S_CMD} get pvc --show-labels=true --all-namespaces=true"
+      cmd "${OS_CMD} get pvc --show-labels=true --all-namespaces=true"
       msg "Get service accounts"
-      cmd "${K8S_CMD} get serviceaccounts --show-labels=true --all-namespaces=true"
+      cmd "${OS_CMD} get serviceaccounts --show-labels=true --all-namespaces=true"
       msg "Get all objects"
-      cmd "${K8S_CMD} get all --show-labels=true --all-namespaces=true"
+      cmd "${OS_CMD} get all --show-labels=true --all-namespaces=true"
     ;;
 
     diagnostic)
-      ${K8S_CMD} adm  diagnostics --cluster-context=${K8S_CONTEXT} all
+      setEnvContext
+      ${OS_CMD} adm  diagnostics  all
     ;;
 
+    # Only for openshift oc cli
     import-docker-image-busy-box)
-      ${K8S_CMD} import-image default/busysbox:latest --from=docker.io/library/busybox:latest --confirm
+      setEnvContext
+      ${OS_CMD} import-image default/busysbox:latest --from=docker.io/library/busybox:latest --confirm
     ;;
 
 
@@ -230,35 +230,40 @@ function openshift() {
  
     # From https://github.com/openshift/origin/tree/release-3.10/examples/quickstarts
     example-django-deploy)
+      setEnvContext
       echo " * Start node example from git repo (use s2i)"
-      ${K8S_CMD} new-app -f https://raw.githubusercontent.com/openshift/origin/release-3.10/examples/quickstarts/django-postgresql-persistent.json -l name=django-example
+      ${OS_CMD} new-app -f https://raw.githubusercontent.com/openshift/origin/release-3.10/examples/quickstarts/django-postgresql-persistent.json -l name=django-example
       echo " * Follow build logs"
-      ${K8S_CMD} logs -f bc/nodejs-ex
+      ${OS_CMD} logs -f bc/nodejs-ex
       echo " * Expose route to outside"
-      ${K8S_CMD} expose svc/nodejs-ex
+      ${OS_CMD} expose svc/nodejs-ex
     ;;
     example-django-delete)
+      setEnvContext
       # use label selector to delete
       echo " * Delete all objects"
-      ${K8S_CMD} delete all -l name=django-example
+      ${OS_CMD} delete all -l name=django-example
     ;;
 
     # From https://github.com/openshift/origin/blob/release-3.10/examples/quickstarts/nginx.json
     example-nginx-deploy)
+      setEnvContext
       echo " * Start node example from git repo (use s2i)"
-      ${K8S_CMD} new-app -f https://raw.githubusercontent.com/openshift/origin/release-3.10/examples/quickstarts/nginx.json -l name=nginx-example
+      ${OS_CMD} new-app -f https://raw.githubusercontent.com/openshift/origin/release-3.10/examples/quickstarts/nginx.json -l name=nginx-example
       echo " * Follow build logs"
-      ${K8S_CMD} logs -f bc/nginx-example
+      ${OS_CMD} logs -f bc/nginx-example
       echo " * Expose route to outside"
-      ${K8S_CMD} expose svc/nodejs-ex
+      ${OS_CMD} expose svc/nodejs-ex
     ;;
     example-nginx-delete)
+      setEnvContext
       # use label selector to delete
       echo " * Delete all objects"
-      ${K8S_CMD} delete all -l name=nginx-example
+      ${OS_CMD} delete all -l name=nginx-example
     ;;
 
     example-deploy-local-storage)
+      setEnvContext
       echo " * Build and deploy local storage template -> https://github.com/openshift/origin/tree/release-3.10/examples/storage-examples/host-path-examples"
       echo "TO DO ...."
     ;;
@@ -266,6 +271,20 @@ function openshift() {
     *) usage; exit 0 ;;
   esac
 
+}
+
+function setEnvContext(){
+  if [[ ! -z "${OS_CONTEXT}" ]]; then
+    echo "!!! Found OS_CONTEXT env: ${OS_CONTEXT} !!!"
+    USER=$(${OS_CMD} whoami)
+    USER_FROM_CONTEXT=$( echo ${OS_CONTEXT}  | cut -d/ -f3 )
+    if [[ "${USER}" != "${USER_FROM_CONTEXT}" ]]; then
+      echo "ERROR: User from OS_CONTEXT env is: ${USER_FROM_CONTEXT} but it is not authenticated! Try to login..."
+      exit 11
+    fi
+    echo "!!! Logged in user is: ${USER}"
+    OS_CMD="${OS_CMD} --context=$OS_CONTEXT "
+  fi
 }
 
 
@@ -284,12 +303,6 @@ function cmd(){
   echo ""
 }
 
-function k8sParseContext(){
-  OPENSHIFT_HOSTNAME=$(${K8S_CMD} config current-context | cut -d/ -f2 | cut -d: -f1 | tr - .)
-  DOCKER_REGISTRY_ROUTE=$(${K8S_CMD} get route docker-registry  -n default -o jsonpath='{.spec.host}')
-  DOCKER_REGISTRY_IP=$(${K8S_CMD} get svc docker-registry  -n default -o jsonpath='{.spec.clusterIP}')
-}
-
 parseCli "$@"
 
 cd ${CURRENT_PATH}
@@ -302,18 +315,18 @@ cd ${CURRENT_PATH}
     # #
 
     # example-deploy-scala-hello-world)
-    #   ${K8S_CMD} login -u developer
+    #   ${OS_CMD} login -u developer
     #   echo " * Delete scala-hello-world"
-    #   #${K8S_CMD} delete
-    #   ${K8S_CMD} delete template 'sbt-jenkins-pipeline'
-    #   ${K8S_CMD} delete imagestreams "wildfly"
-    #   ${K8S_CMD} delete buildconfigs "scala-hello-world-docker"
-    #   ${K8S_CMD} delete imagestreams,buildconfigs,deploymentconfigs,services,routes "scala-hello-world"
+    #   #${OS_CMD} delete
+    #   ${OS_CMD} delete template 'sbt-jenkins-pipeline'
+    #   ${OS_CMD} delete imagestreams "wildfly"
+    #   ${OS_CMD} delete buildconfigs "scala-hello-world-docker"
+    #   ${OS_CMD} delete imagestreams,buildconfigs,deploymentconfigs,services,routes "scala-hello-world"
 
     #   echo " * Build scala-hello-world"
-    #   ${K8S_CMD} create -f ${SCRIPT_PATH}/../boilerplates/scala-hello-world/openshift/sbt-jenkins-pipeline.yaml
-    #   ${K8S_CMD} new-app sbt-jenkins-pipeline # build, export artifact to anothe image, and deploy
-    #   ${K8S_CMD} start-build scala-hello-world
+    #   ${OS_CMD} create -f ${SCRIPT_PATH}/../boilerplates/scala-hello-world/openshift/sbt-jenkins-pipeline.yaml
+    #   ${OS_CMD} new-app sbt-jenkins-pipeline # build, export artifact to anothe image, and deploy
+    #   ${OS_CMD} start-build scala-hello-world
     #   openshiftWebConsole
 
     # ;;
