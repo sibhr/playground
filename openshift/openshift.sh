@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-#   Example bash script
+#   Openshift cluster helper script
 #
 #   REMEMBER TO check syntax with https://github.com/koalaman/shellcheck
 #
@@ -13,9 +13,7 @@ set -o pipefail # exit on any errors in piped commands
 
 declare SCRIPT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 declare CURRENT_PATH=$( pwd )
-
-# @info:  Parses and validates the CLI arguments
-# @args:	Global Arguments $@
+declare OS_CMD="oc "
 
 # Check platform
 declare PLATFORM=$(uname)
@@ -23,9 +21,6 @@ if [[ "$PLATFORM" != 'Darwin' ]]; then
   echo " Only Mac Os X is supported"
   exit 1
 fi
-
-# Set context from env variable
-declare OS_CMD="oc "
 
 
 declare PARAM_OPENSHIFT=''
@@ -105,12 +100,18 @@ function openshift() {
       echo " * Docker registry route: ${DOCKER_REGISTRY_ROUTE}"
       echo " * Docker registry internal pod ip: ${DOCKER_REGISTRY_IP}"
     ;;
-
+    minishift-clock)
+      echo "Current date in minishift: $(minishift ssh date)"
+      DATE_SEC=$(  date +%s )
+      minishift ssh "timedatectl set-timezone Europe/Rome"
+      minishift ssh "sudo date -s '@${DATE_SEC}'"
+      echo "New date in minishift: $(minishift ssh date)"
+    ;;
     #
     # --- Docker ---
     # Only with openshift oc client
     #     
-    openshift-docker-up)
+    docker-up)
       command -v docker >/dev/null 2>&1 || {
         echo " * ERROR: install docker and retry!"
         exit 1
@@ -126,12 +127,12 @@ function openshift() {
       cmd "oc cluster up --version=v${OPENSHIFT_VERSION} --http-proxy=docker.for.mac.http.internal:3128 --https-proxy=docker.for.mac.http.internal:3129"
       msg " !! IMPORTANT !! - If router and docker registry are not running: create admin user with this script, login and restart router and docker registry"
     ;;
-    openshift-docker-down)
+    docker-down)
       echo "Stop cluster"
       oc cluster down
       oc config delete-cluster 127-0-0-1:8443
     ;;
-    openshift-docker-login-admin)
+    docker-login-admin)
       declare OPENSHIFT_DOCKER_CLUSTER_URL="https://127.0.0.1:8443"
       oc login -u system:admin --server=${OPENSHIFT_DOCKER_CLUSTER_URL} --insecure-skip-tls-verify --loglevel 5
       oc create user admin
