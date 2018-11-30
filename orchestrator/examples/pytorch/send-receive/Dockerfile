@@ -39,7 +39,7 @@ RUN pip3 install --upgrade pip && \
     pip3 install torch torchvision 
 ### Clone python app
 
-RUN curl https://raw.githubusercontent.com/kubeflow/pytorch-operator/master/examples/dist-sendrecv/dist_sendrecv.py \
+RUN curl https://raw.githubusercontent.com/kubeflow/pytorch-operator/v0.3.0/examples/smoke-dist/dist_sendrecv.py \
     -o ${APP_ROOT}/dist_sendrecv.py
 
 ### Containers should NOT run as root as a good practice

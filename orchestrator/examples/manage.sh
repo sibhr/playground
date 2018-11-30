@@ -14,7 +14,10 @@ set -o pipefail # exit on any errors in piped commands
 declare SCRIPT_PATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 declare CURRENT_PATH=$( pwd )
 declare OS_CMD="oc "
-
+declare K8S_CMD="kubectl "
+declare OPENSHIFT_NAMESPACE="examples"
+declare OPENSHIFT_SERVICE_ACCOUNT="examples"
+declare OPENSHIFT_APP="examples"
 
 declare PARAM=''
 
@@ -27,20 +30,65 @@ function parseCli(){
     val="$2"
     case $key in
       -h | --help ) usage; exit 0 ;;
-      *) PARAM=$key; parse; exit 0;;
+      os) PARAM=$val; openshift; exit 0;;
+      k8s) PARAM=$val; k8s; exit 0;;
+      *) PARAM=$key; openshift; exit 0;;
     esac
     shift
   done
 }
+#
+# --------- k8s ----------------------------------------------------------
+#
+function k8s() {
+  setEnvContext
+  case $PARAM in
+    #
+    # --- pytorch-operator ---
+    #      
+    pytorch-operator-install)
+      # Poc https://github.com/kubeflow/pytorch-operator
+      # Install k8s schema https://www.kubeflow.org/docs/guides/components/pytorch/
+      # Example api version must match CRD api version
+      brew install ksonnet/tap/ks || brew upgrade ksonnet/tap/ks
+      mkdir -p ${SCRIPT_PATH}/pytorch/ks
+      cd ${SCRIPT_PATH}/pytorch/ks
+      KS_APP="kubeflow"
+      ks init ${KS_APP}
+      cd ${SCRIPT_PATH}/pytorch/ks/${KS_APP}
+      ks registry add -o -v  kubeflow github.com/kubeflow/kubeflow/tree/v0.3.0/kubeflow
+      ks pkg install kubeflow/pytorch-job@master
+      ks generate pytorch-operator pytorch-operator
+      ks apply default  -c pytorch-operator
+    ;;
+    pytorch-sendrecv-deploy)
+      kubectl create -f https://raw.githubusercontent.com/kubeflow/pytorch-operator/master/examples/smoke-dist/v1beta1/pytorch_job_sendrecv.yaml
+    ;;
+    pytorch-sendrecv-delete)
+      kubectl delete -f https://raw.githubusercontent.com/kubeflow/pytorch-operator/master/examples/smoke-dist/v1beta1/pytorch_job_sendrecv.yaml
+    ;;
+    pytorch-sendrecv-info)
+      echo "--------------------------------------"
+      echo "--- get pod info                   ---"
+      echo "--------------------------------------"
+      kubectl describe pod -l pytorch_job_name=pytorch-dist-basic-sendrecv --show-events=true
+      echo "--------------------------------------"
+      echo "--- get services info              ---"
+      echo "--------------------------------------"
+      kubectl describe service -l pytorch_job_name=pytorch-dist-basic-sendrecv
+      echo "--------------------------------------"
+      echo "--- get pod logs (all togheter...) ---"
+      echo "--------------------------------------"
+      kubectl logs -l pytorch_job_name=pytorch-dist-basic-sendrecv
 
+    ;;
+    *) usage; exit 0 ;;
+  esac
+}
 #
 # --------- Openshift ----------------------------------------------------------
 #
-declare OPENSHIFT_NAMESPACE="examples"
-declare OPENSHIFT_SERVICE_ACCOUNT="examples"
-declare OPENSHIFT_APP="examples"
-
-function parse() {
+function openshift() {
   setEnvContext
   declare DOCKER_REGISTRY_ROUTE=$(${OS_CMD} get route docker-registry  -n default -o jsonpath='{.spec.host}')
   declare DOCKER_REGISTRY_IP=$(${OS_CMD} get svc docker-registry  -n default -o jsonpath='{.spec.clusterIP}')
@@ -184,6 +232,14 @@ function setEnvContext() {
     echo "!!! Logged in user is: ${USER}"
     OS_CMD="${OS_CMD} --context=$OS_CONTEXT "
   fi
+  if [[ ! -z "${K8S_CONTEXT}" ]]; then
+    echo "Env K8S_CONTEXT found: ${K8S_CONTEXT} !!!"
+    OS_CMD="${OS_CMD} --context=${K8S_CONTEXT} "
+  else
+    echo "Env K8S_CONTEXT not found. Use local k8s context: 'docker-for-desktop'"
+    OS_CMD="${OS_CMD} --context=docker-for-desktop "
+  fi
+  
 }
 
 # @info:	Check default OS context
