@@ -4,12 +4,13 @@
 Vagrant.require_version ">= 1.9.0"
 
 # Defaults for config options defined in CONFIG
-$num_instances = 3
-$vm_memory = 3072
+$num_instances = 1
+$vm_memory = 2048
 $vm_cpus = 2
 $vm_executioncap = 20 # Max host cpu used by any vm
 $instance_name_prefix = "centos"
-$share_folder = false
+$share_folder = false # Require vagrant-vbguest plugin
+$update_etc_hostname = false # Require vagrant-hostmanager plugin
 $vm_gui = false
 
 Vagrant.configure("2") do |config|
@@ -19,25 +20,33 @@ Vagrant.configure("2") do |config|
   config.vm.box = "centos/7"
 
   # Type: virtualbox share data
-  # Requirement: https://github.com/dotless-de/vagrant-vbguest
+  # Require a plugin: https://github.com/dotless-de/vagrant-vbguest
   # See https://github.com/mitchellh/vagrant/issues/7157
   if $share_folder == true
+    # Enable vbguest auto update - require a plugin
+    config.vbguest.auto_update = true
     config.vm.share_folder ".", "/vagrant", type: "virtualbox"
   else
+    # Do not upgrade vbox guest package
+    config.vbguest.auto_update = false
     # disbale default shared folder
     config.vm.synced_folder ".", "/vagrant", disabled: true
   end
 
-  # enable hostmanager
-  config.hostmanager.enabled = true
+  # Require plugin: vagrant-hostmanager
+  # configure the host's /etc/hosts with vm names
+  if $update_etc_hostname == true
+    config.hostmanager.enabled = true
+    config.hostmanager.manage_host = true
+  else 
+    config.hostmanager.enabled = false
+    config.hostmanager.manage_host = false
+  end
 
-  # configure the host's /etc/hosts
-  config.hostmanager.manage_host = true
-
+  # Configure virtual machines
   (1..$num_instances).each do |i|
     config.vm.define vm_name = "%s-%02d" % [$instance_name_prefix, i] do |config|
       config.vm.hostname = vm_name
-
       config.vm.provider :virtualbox do |vb|
         vb.gui = $vm_gui
         vb.memory = $vm_memory
