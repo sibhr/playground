@@ -5,12 +5,12 @@ Vagrant.require_version ">= 1.9.0"
 
 # Defaults for config options defined in CONFIG
 $num_instances = 1
-$vm_memory = 2048
+$vm_memory = 6096
 $vm_cpus = 2
-$vm_executioncap = 20 # Max host cpu used by any vm
+#$vm_executioncap = 20 # Max host cpu used by any vm
 $instance_name_prefix = "centos"
 $share_folder = false # Require vagrant-vbguest plugin
-$update_etc_hostname = false # Require vagrant-hostmanager plugin
+$update_etc_hostname = true # Must be enbaled for openshift - Require vagrant-hostmanager plugin
 $vm_gui = false
 
 Vagrant.configure("2") do |config|
@@ -51,7 +51,7 @@ Vagrant.configure("2") do |config|
         vb.gui = $vm_gui
         vb.memory = $vm_memory
         vb.cpus = $vm_cpus
-        vb.customize ["modifyvm", :id, "--cpuexecutioncap", $vm_executioncap]
+#        vb.customize ["modifyvm", :id, "--cpuexecutioncap", $vm_executioncap]
       end
 
       ip = "192.168.50.#{i+100}"
@@ -59,9 +59,20 @@ Vagrant.configure("2") do |config|
 
     end
   end
+  config.vm.provision :file do |file|
+    file.source = "/Users/gianluca/.vagrant.d/insecure_private_key"
+    file.destination = "${HOME}/insecure_private_key"
+  end
+  config.vm.provision :file do |file|
+    file.source = "./ansible"
+    file.destination = "${HOME}/ansible"
+  end
   # Ansible Provisioning
   # Inventory file is .vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory
+  # config.vm.provision :ansible do |ansible|
+  #   ansible.playbook = "ansible/ping.yml"
+  # end
   config.vm.provision :ansible do |ansible|
-    ansible.playbook = "ansible/ping.yml"
+    ansible.playbook = "ansible/bastion.yml"
   end
 end
