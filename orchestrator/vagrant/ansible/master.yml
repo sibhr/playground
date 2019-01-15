@@ -12,33 +12,39 @@
   gather_facts: False # Faster
 
   tasks:
-  #- ping:
-  - shell: whoami
-    register: out
-  - debug: msg="{{ out.stdout }}"
-  - debug: msg="{{ out.stderr }}"
-  - yum: name={{ item }} state=latest
-    with_items:
-    - wget
-    - git
-    - net-tools
-    - bind-utils
-    - yum-utils
-    - iptables-services
-    - bridge-utils
-    - bash-completion
-    - kexec-tools
-    - sos
-    - psacct
-    - centos-release-openshift-origin311
-  - yum: name={{ item }} state=latest
-    with_items:
-    - openshift-ansible
+  - copy:
+      src: ./host-3-11-cluster.localhost
+      dest: /opt/host-3-11-cluster.localhost
+  - copy:
+      src: ./ping.yml
+      dest: /opt/ping.yml
+  - copy:
+      src: /${HOME}/.vagrant.d/insecure_private_key
+      dest: /opt/insecure_private_key
+  - yum:
+      name: "{{ packages }}"
+    vars:
+      packages:
+      - wget
+      - git
+      - net-tools
+      - bind-utils
+      - yum-utils
+      - iptables-services
+      - bridge-utils
+      - bash-completion
+      - kexec-tools
+      - sos
+      - psacct
+      - centos-release-openshift-origin311
+  - yum:
+      name: "openshift-ansible"
+
 #    - https://releases.ansible.com/ansible/rpm/release/epel-7-x86_64/ansible-2.7.1-1.el7.ans.noarch.rpm
 #  - shell: 'yum -y --nogpgcheck localinstall https://releases.ansible.com/ansible/rpm/release/epel-7-x86_64/ansible-2.6.5-1.el7.ans.noarch.rpm'
   - git:
       repo: 'https://github.com/openshift/openshift-ansible.git'
-      dest: '/home/vagrant/openshift-ansible'
+      dest: '/opt/openshift-ansible'
       version: openshift-ansible-3.11.68-1 # Fix this https://github.com/openshift/openshift-ansible/pull/10812
 
 # Induce an exception to see what happens

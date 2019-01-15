@@ -8,11 +8,10 @@
   #- ping:
   - shell: whoami
     register: out
-
   - debug: msg="{{ out.stdout }}"
-
   - debug: msg="{{ out.stderr }}"
-
+  - debug:
+      msg: "openshift_hostname {{ openshift_hostname }} - inventory_hostname {{ inventory_hostname }}"
 # Induce an exception to see what happens
 # - ping:
 #     data: crash
