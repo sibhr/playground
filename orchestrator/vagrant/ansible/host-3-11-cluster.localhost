@@ -1,8 +1,3 @@
-# Master is also the bastion (where ansiblle will run)
-okd-master-01 openshift_ip=192.168.50.101 openshift_public_ip=192.168.50.101 ansible_connection=local 
-# Worker nodes
-okd-worker-01 openshift_ip=192.168.50.151 openshift_public_ip=192.168.50.151
-
 [OSEv3:children]
 masters
 nodes
@@ -11,30 +6,32 @@ etcd
 [OSEv3:vars]
 ansible_ssh_common_args='-o StrictHostKeyChecking=no'
 ansible_user='vagrant'
-ansible_ssh_private_key_file='/home/vagrant/insecure_private_key'
+ansible_ssh_private_key_file='/opt/insecure_private_key'
 ansible_become=yes
 ansible_become_user=root
 # openshift
-openshift_hostname="{{ inventory_hostname }}" 
-openshift_public_hostname="{{ inventory_hostname }}"
 openshift_deployment_type=origin
 openshift_portal_net=172.30.0.0/16
 # localhost likely doesn't meet the minimum requirements
 openshift_disable_check=docker_storage,disk_availability,memory_availability
-
-
-openshift_master_cluster_hostname=okd-master-01
-openshift_master_cluster_public_hostname=okd-master-01
-# nip.io only support ip, must match infra node on vagrant
+openshift_master_cluster_hostname=okd-master-01.vm.local
+openshift_master_cluster_public_hostname=okd-master-01.vm.local
+# required with vagrant nat
+openshift_public_hostname="{{ inventory_hostname }}"
+# must point to infra node or where router runs
 openshift_master_default_subdomain=192.168.50.101.nip.io
+# set to true when define openshift_master_default_subdomain
+openshift_master_overwrite_named_certificates=true
 
 [masters]
-okd-master-01
+okd-master-01.vm.local openshift_ip=192.168.50.101 openshift_public_ip=192.168.50.101 ansible_connection=local
 
 [etcd]
-okd-master-01
+okd-master-01.vm.local openshift_ip=192.168.50.101 openshift_public_ip=192.168.50.101 ansible_connection=local
 
 [nodes]
 # openshift_node_group_name should refer to a dictionary with matching key of name in list openshift_node_groups.
-okd-master-01 openshift_node_group_name="node-config-master"
-okd-worker-01 openshift_node_group_name="node-config-compute"
+okd-master-01.vm.local openshift_ip=192.168.50.101 openshift_public_ip=192.168.50.101 ansible_connection=local openshift_node_group_name="node-config-master-infra"
+okd-worker-01.vm.local openshift_ip=192.168.50.151 openshift_public_ip=192.168.50.151 openshift_node_group_name="node-config-compute"
+okd-worker-02.vm.local openshift_ip=192.168.50.152 openshift_public_ip=192.168.50.152 openshift_node_group_name="node-config-compute"
+okd-worker-03.vm.local openshift_ip=192.168.50.153 openshift_public_ip=192.168.50.153 openshift_node_group_name="node-config-compute"

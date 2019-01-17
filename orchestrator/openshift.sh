@@ -66,7 +66,7 @@ function usage {
 #
 # --------- Openshift ----------------------------------------------------------
 #
-declare OPENSHIFT_VAGRANT_MASTER="centos-01"
+declare OPENSHIFT_VAGRANT_MASTER="okd-master-01.vm.local"
 declare OPENSHIFT_VAGRANT_CLUSTER_URL="https://${OPENSHIFT_VAGRANT_MASTER}:8443"
 declare OPENSHIFT_VERSION="3.11.0"
 
@@ -144,10 +144,14 @@ function openshift() {
     # --- Vagrant ---
     #     
     # make user admin to be a real admin, must be run on a master node
+    vagrant-web)
+      open ${OPENSHIFT_VAGRANT_CLUSTER_URL}
+    ;;
     vagrant-acl-for-admin)
-      cd vagrant
+      TMP=$( pwd )
+      cd ${SCRIPT_PATH}/vagrant
       vagrant ssh ${OPENSHIFT_VAGRANT_MASTER} -c "sudo ${OS_CMD} create user admin && sudo ${OS_CMD} adm policy add-cluster-role-to-user cluster-admin admin"
-      cd ..
+      cd ${TMP}
     ;;
     # User admin password admin created at install time
     vagrant-login-admin)

@@ -21,6 +21,7 @@
   - copy:
       src: /${HOME}/.vagrant.d/insecure_private_key
       dest: /opt/insecure_private_key
+      mode: 0600
   - yum:
       name: "{{ packages }}"
     vars:

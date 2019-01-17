@@ -2,16 +2,19 @@
 # # vi: set ft=ruby :
 
 Vagrant.require_version ">= 1.9.0"
+
+$fqdn = "vm.local"
+# Masters
 $master_instances = 1
-$master_memory = 2048
+$master_memory = 4096
 $master_cpus = 2
-$master_executioncap = 100 # Max host cpu used by any vm
+$master_executioncap = 75 # Max host cpu used by any vm
 $master_name_prefix = "okd-master"
 # Defaults for config options defined in CONFIG
-$worker_instances = 1
-$worker_memory = 6096
+$worker_instances = 3
+$worker_memory = 4096
 $worker_cpus = 2
-$worker_executioncap = 100 # Max host cpu used by any vm
+$worker_executioncap = 75 # Max host cpu used by any vm
 $worker_name_prefix = "okd-worker"
 
 $share_folder = false # Require vagrant-vbguest plugin
@@ -50,7 +53,7 @@ Vagrant.configure("2") do |config|
 
   # Configure master virtual machines
   (1..$master_instances).each do |i|
-    config.vm.define vm_name = "%s-%02d" % [$master_name_prefix, i] do |config_vm|
+    config.vm.define vm_name = "%s-%02d.%s" % [$master_name_prefix, i, $fqdn] do |config_vm|
       config_vm.vm.hostname = vm_name
       config_vm.vm.provider :virtualbox do |vb|
         vb.gui = $vm_gui
@@ -66,25 +69,31 @@ Vagrant.configure("2") do |config|
       # Inventory file is .vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory
       config_vm.vm.provision :ansible do |ansible|
         ansible.playbook = "ansible/master.yml"
+        ansible.compatibility_mode="2.0"
       end
     end
   end
-# Configure worker virtual machines
-(1..$worker_instances).each do |i|
-  config.vm.define vm_name = "%s-%02d" % [$worker_name_prefix, i] do |config_vm|
-    config_vm.vm.hostname = vm_name
-    config_vm.vm.provider :virtualbox do |vb|
-      vb.gui = $vm_gui
-      vb.memory = $worker_memory
-      vb.cpus = $worker_cpus
-      if $worker_executioncap < 100
-        vb.customize ["modifyvm", :id, "--cpuexecutioncap", $worker_executioncap]
+  # Configure worker virtual machines
+  (1..$worker_instances).each do |i|
+    config.vm.define vm_name = "%s-%02d.%s" % [$worker_name_prefix, i, $fqdn] do |config_vm|
+      config_vm.vm.hostname = vm_name
+      config_vm.vm.provider :virtualbox do |vb|
+        vb.gui = $vm_gui
+        vb.memory = $worker_memory
+        vb.cpus = $worker_cpus
+        if $worker_executioncap < 100
+          vb.customize ["modifyvm", :id, "--cpuexecutioncap", $worker_executioncap]
+        end
       end
+      ip = "192.168.50.#{i+150}"
+      config_vm.vm.network :private_network, ip: ip
     end
-    ip = "192.168.50.#{i+150}"
-    config_vm.vm.network :private_network, ip: ip
   end
-end
+  # Common provisioner
+  config.vm.provision :ansible do |ansible|
+    ansible.playbook = "ansible/prepare-nodes.yml"
+    ansible.compatibility_mode="2.0"
+  end
 
 
 end
