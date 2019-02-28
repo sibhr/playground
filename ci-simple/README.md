@@ -49,8 +49,6 @@ Test ldap user login:
 - Patch cockpit to show more then 10 service log files
 - Upgrade service to run with non root user
 
-
-
 ## Issues
 
 - Cockpit with ldap crashes with selinux enabled, use permissive policy
