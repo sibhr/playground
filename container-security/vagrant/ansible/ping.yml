@@ -1,0 +1,26 @@
+# Example from an Ansible Playbook
+---
+- hosts:
+  - all
+  become: yes
+  become_user: root
+  gather_facts: False # Faster
+
+  tasks:
+  - ping:
+  - shell: whoami
+    register: out
+  - debug: msg="{{ out.stdout }}"
+  - debug: msg="{{ out.stderr }}"
+  - name: Install a list of packages
+    yum:
+      name:
+        - podman
+        - openscap-scanner
+        - openscap-containers
+        - scap-security-guide
+      state: present
+
+# Induce an exception to see what happens
+# - ping:
+#     data: crash
