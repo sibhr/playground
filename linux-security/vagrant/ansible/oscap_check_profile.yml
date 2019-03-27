@@ -1,0 +1,40 @@
+# Example from an Ansible Playbook
+---
+- hosts: all
+  become: yes
+  become_user: root
+  gather_facts: False # Faster
+  vars:
+    oscap_profile: "xccdf_org.ssgproject.content_profile_standard"
+    #oscap_ds: "/usr/share/xml/scap/ssg/content/ssg-centos7-ds.xml"
+    oscap_ds: "/usr/share/xml/scap/ssg/content/ssg-rhel7-ds.xml"
+    log_prefix: "rhel7"
+  tasks:
+  - name: Check oscap profile
+    shell: "oscap xccdf eval --fetch-remote-resources  --profile {{ oscap_profile }}  --results-arf /tmp/arf.xml  --report /tmp/{{ log_prefix }}-report.html  {{ oscap_ds }}"
+    ignore_errors: yes
+  - name: Generate ansible fix
+    shell: "oscap xccdf generate fix --fix-type ansible --profile {{ oscap_profile }} --output /tmp/{{ log_prefix }}-oscap-ansible-fix.yml {{ oscap_ds }}"
+  - name: Run ansible fix
+    shell: "ansible-playbook --connection=local --inventory 127.0.0.1, /tmp/oscap-ansible-fix.yml"
+  - name: Check oscap profile after ansible fix
+    shell: "oscap xccdf eval --fetch-remote-resources  --profile {{ oscap_profile }}  --results-arf /tmp/arf-ansible-fix.xml  --report /tmp/{{ log_prefix }}-report-ansible-fix.html  {{ oscap_ds }}"
+    ignore_errors: yes
+  - name: Generate bash fix
+    shell: "oscap xccdf generate fix --fix-type bash --profile {{ oscap_profile }} --output /tmp/{{ log_prefix }}-oscap-bash-fix.sh {{ oscap_ds }}"
+  - name: Run bash fix
+    shell: /tmp/oscap-bash-fix.sh
+  - name: Check oscap profile after bash fix
+    shell: "oscap xccdf eval --fetch-remote-resources  --profile {{ oscap_profile }}  --results-arf /tmp/arf-bash-fix.xml  --report /tmp/{{ log_prefix }}-report-bash-fix.html  {{ oscap_ds }}"
+    ignore_errors: yes
+  - name: "Copy oscap files to local"
+    fetch:
+      src: "/tmp/{{ log_prefix }}-{{ item }}"
+      dest: "/tmp/{{ log_prefix }}-{{ item }}"
+      flat: yes
+    with_items:
+    - report.html
+    - report-ansible-fix.html
+    - report-bash-fix.html
+
+    

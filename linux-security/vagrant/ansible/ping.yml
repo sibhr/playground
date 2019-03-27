@@ -20,7 +20,3 @@
         - openscap-containers
         - scap-security-guide
       state: present
-
-# Induce an exception to see what happens
-# - ping:
-#     data: crash

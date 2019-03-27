@@ -1,0 +1,54 @@
+---
+#
+# Install vuls and download db - It takes 1 hour...
+#
+- name: run the playbook tasks on the localhost
+  hosts: 127.0.0.1
+  connection: local
+  become: no
+  gather_facts: False # Faster
+  tasks:
+  - name: pull an image
+    docker_image:
+      name: "{{ item }}" 
+    with_items:
+    - vuls/go-cve-dictionary
+    - vuls/goval-dictionary
+    - vuls/gost
+    - vuls/vuls
+  - name: make dir
+    file:
+      path: "{{ item }}"
+      state: directory
+    with_items:
+    - "{{ playbook_dir }}/../db"
+    - "{{ playbook_dir }}/../db/vuls"
+    - "{{ playbook_dir }}/../db/go-cve-dictionary-log"
+    - "{{ playbook_dir }}/../db/goval-dictionary-log"
+    - "{{ playbook_dir }}/../db/gost-log"
+  # - shell: |
+  #     ls /
+  #     echo {{ playbook_dir }}
+  - name: Download cve
+    shell: |
+      for i in `seq 2002 $(date +"%Y")`; do
+        docker run --rm  -v {{ playbook_dir }}/../db/vuls:/vuls -v {{ playbook_dir }}/../db/go-cve-dictionary-log:/var/log/vuls vuls/go-cve-dictionary fetchnvd -years $i;
+      done
+    args:
+      creates: "{{ playbook_dir }}/../db/go-cve-dictionary-log/cve-dictionary.log"
+  - name: Download oval
+    shell: |
+      docker run --rm  \
+      -v {{ playbook_dir }}/../db/vuls:/vuls \
+      -v {{ playbook_dir }}/../db/goval-dictionary-log:/var/log/vuls \
+      vuls/goval-dictionary fetch-redhat 7
+    args:
+      creates: "{{ playbook_dir }}/../db/goval-dictionary-log/goval-dictionary.log"
+  - name: Download gost
+    shell: |
+      docker run --rm  \
+      -v {{ playbook_dir }}/../db/vuls:/vuls \
+      -v {{ playbook_dir }}/../db/gost-log:/var/log/gost \
+      vuls/gost fetch redhat --after=2018-01-01
+    args:
+      creates: "{{ playbook_dir }}/../db/gost-log/gost-dictionary.log"

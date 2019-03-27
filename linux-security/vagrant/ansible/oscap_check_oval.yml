@@ -1,0 +1,23 @@
+# Example from an Ansible Playbook
+---
+- hosts: all
+  become: yes
+  become_user: root
+  gather_facts: False # Faster
+  tasks:
+  - name: Download CIS oval 
+    shell: "curl -O https://oval.cisecurity.org/repository/download/5.11.2/vulnerability/centos_linux_7.xml"
+  - name: Check oscap oval
+    shell: "oscap oval eval --results /tmp/oval-report.xml --report /tmp/oval-report.html centos_linux_7.xml"
+    register: out
+  - debug: msg="{{ out.stdout }}"
+  - debug: msg="{{ out.stderr }}"
+  - name: "Copy oscap files to local"
+    fetch:
+      src: "/tmp/{{ item }}"
+      dest: "/tmp/{{ item }}"
+      flat: yes
+    with_items:
+    - oval-report.html
+
+    
