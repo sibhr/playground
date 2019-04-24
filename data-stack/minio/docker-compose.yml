@@ -1,0 +1,27 @@
+version: '3'
+services:
+  minio:
+    image: minio/minio:RELEASE.2019-04-18T01-15-57Z
+    #command: server /data
+    entrypoint: /bin/sh -c 'sleep 300'
+    environment:
+      - "MINIO_ACCESS_KEY=AKIAIOSFODNN7EXAMPLE"
+      - "MINIO_SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+    ports:
+     - "9000:9000"
+  # mint:
+  #   image: minio/mint
+  #   environment:
+  #     - "SERVER_ENDPOINT=proxy:9090"
+  #     - "ACCESS_KEY=AKIAIOSFODNN7EXAMPLE"
+  #     - "SECRET_KEY=wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  #     - "ENABLE_HTTPS=0"
+  #
+  # connect with docker exec -ti <container name> /bin/bash
+  # bash:
+  #   image: centos:7
+  #   command: /bin/bash
+  #   links:
+  #   - minio
+  #   tty: true
+  #   stdin_open: true    

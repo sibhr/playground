@@ -46,7 +46,7 @@
   - git:
       repo: 'https://github.com/openshift/openshift-ansible.git'
       dest: '/opt/openshift-ansible'
-      version: openshift-ansible-3.11.68-1 # Fix this https://github.com/openshift/openshift-ansible/pull/10812
+      version: openshift-ansible-3.11.103-1 # Fix this https://github.com/openshift/openshift-ansible/pull/10812
 
 # Induce an exception to see what happens
 # - ping:

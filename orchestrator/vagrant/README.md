@@ -16,9 +16,9 @@ This inventory works from local terminal
 
 ## Install
 
-- enter first server `vagrant ssh okd-master-01`
+- enter first server `vagrant ssh okd-master-01.vm.local`
 - sudo `sudo su`
-- `cd /home/vagrant/openshift-ansible`
+- `cd /opt/openshift-ansible`
 - **IMPORTANT!** `git checkout openshift-ansible-3.11.68-1`
 - test inventory `ansible-playbook -i /opt/host-3-11-cluster.localhost /opt/ping.yml`
 - check ansible `ansible-playbook -i /opt/host-3-11-cluster.localhost /opt/openshift-ansible/playbooks/prerequisites.yml`
