@@ -1,12 +1,19 @@
 version: '3'
 services:
-  dask-jupyterlab:
-    image: dask-single-custom:local
-    build: ./dask-single-custom
-    volumes: 
-      - './datasets/dask-jupyterlab:/opt/app/notebooks/dask-tutorial/data'
+  jupyterlab:
+    image: jupyterlab:local
+    build: ./jupyterlab
+    ports:
+     - "8888:8888"
+    volumes:
+      - './notebooks:/opt/app/notebooks'   
+  # dask-jupyterlab:
+  #   image: dask-single-custom:local
+  #   build: ./dask-single-custom
+  #   volumes: 
+  #     - './datasets/dask-jupyterlab:/opt/app/notebooks/dask-tutorial/data'
   minio:
-    image: minio/minio:RELEASE.2019-04-18T01-15-57Z
+    image: minio/minio:RELEASE.2019-04-23T23-50-36Z
     command: server /data
     #entrypoint: /bin/sh -c 'sleep 300'
     environment:

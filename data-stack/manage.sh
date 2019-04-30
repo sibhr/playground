@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 
-#set -x          # debug enabled
+#set -x         # debug enabled
 set -e          # exit on first error
 set -o pipefail # exit on any errors in piped commands
 
@@ -16,9 +16,17 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 function parseCli() {
   while [[ "$#" -gt 0 ]]; do
     declare KEY="$1"
-    declare VALUE="$2"
+    #declare VALUE="$2"
     case "${KEY}" in
     # exec command here
+    docker-compose-build)
+      docker-compose build
+      exit 0
+    ;;
+    docker-compose-run)
+      docker-compose up 
+      exit 0
+    ;;    
     superset-clone)
       git clone https://github.com/apache/incubator-superset.git superset/incubator-superset
       exit 0
