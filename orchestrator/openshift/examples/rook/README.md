@@ -1,11 +1,15 @@
 # Rook
 
+Deploy a rook cluster
+
+- 1 node on worker
+- 3 nodes on workers
+## Run
+
+See [openshift.sh](../../openshift.sh)
+
 ## Issues
 
-- timeout mount volume https://github.com/rook/rook/issues/1501
-
-- manual create replica pool <http://docs.ceph.com/docs/mimic/rados/operations/pools/#create-a-pool>
-- `ceph osd pool create replicapool 128`
-- `ceph osd lspools`
-- `rbd create replicapool/test --size 10`
-- `rbd info replicapool/test`
+- operator timeout to mgr service, no osd service running: operator and mgr need to run on the same node, use label and placement (to be confirmed, no issue open)
+- timeout mount volume for pod: flex volume folder must be set in [operator-openshift.yaml](./operator-openshift.yaml), see openshift docs <- Flex volume folder https://docs.okd.io/3.11/install_config/persistent_storage/persistent_storage_flex_volume.html#flex-volume-installation>
+- use at least 10 GB disc

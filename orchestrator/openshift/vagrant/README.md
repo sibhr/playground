@@ -34,6 +34,6 @@ Run This steps from bastion server
 ## Notes
 
 - Test with `openshift-ansible-3.11.114-1`
-- Flex volume folder https://docs.okd.io/3.11/install_config/persistent_storage/persistent_storage_flex_volume.html#flex-volume-installation
+
 
 Run nfs-example `./scripts/openshift.sh create-nfs-example`
