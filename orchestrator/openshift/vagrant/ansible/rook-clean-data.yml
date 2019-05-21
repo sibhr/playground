@@ -1,0 +1,25 @@
+---
+- hosts:
+  - all
+  become: yes
+  become_user: root
+  gather_facts: False # Faster
+
+  tasks:
+  - file:
+      dest: /var/lib/rook
+      state: absent
+  - file:
+      dest: /opt/openshift/rook
+      state: absent
+  - name: ROOK | Clean up resources LVM entries
+    shell: sudo rm -rf /dev/mapper/ceph--* && sudo rm -rf /dev/ceph-* 
+  
+  - name : ROOK | Clean configuration directory
+    shell: sudo rm -rf /opt/openshift/rook
+  
+  - name: ROOK | Running DMSETUP
+    shell: for i in $(sudo dmsetup ls | grep ceph | awk '{print $1}'); do sudo dmsetup remove $i; done 
+    
+  - name: ROOK | Running wipefs on /dev/sdb
+    shell: sudo wipefs -af /dev/sdb

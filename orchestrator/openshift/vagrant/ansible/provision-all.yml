@@ -12,3 +12,11 @@
     lineinfile: dest=/etc/hosts
                 state=absent 
                 regexp='^127.0.0.1\s*{{inventory_hostname}}' 
+  # Disable swap 
+  - name: Disable SWAP
+    shell: swapoff -a
+  - name: Disable SWAP
+    replace:
+      path: /etc/fstab
+      regexp: '^(.+?\sswap\s+sw\s+.*)$'
+      replace: '# \1'
