@@ -4,5 +4,5 @@
 See relative folders:
 
 - [kubernetes](./k8s)
-- [openshift])(./openshift)
+- [openshift](./openshift)
 - [examples](./examples)
