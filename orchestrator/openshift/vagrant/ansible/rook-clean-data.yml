@@ -6,12 +6,23 @@
   gather_facts: False # Faster
 
   tasks:
-  - file:
-      dest: /var/lib/rook
+  - name: Delete rook folders
+    file:
+      path: "{{ item }}"
       state: absent
-  - file:
-      dest: /opt/openshift/rook
-      state: absent
+    with_items:
+      - /var/lib/rook
+      - /opt/openshift/rook
+      - /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ceph.rook.io~rook
+      - /usr/libexec/kubernetes/kubelet-plugins/volume/exec/ceph.rook.io~rook-ceph
+      - /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook
+      - /usr/libexec/kubernetes/kubelet-plugins/volume/exec/rook.io~rook-ceph
+      - /etc/kubernetes/kubelet-plugins/volume/exec/ceph.rook.io~rook-ceph
+      - /etc/kubernetes/kubelet-plugins/volume/exec/ceph.rook.io~rook
+      - /etc/kubernetes/kubelet-plugins/volume/exec/rook.io~rook-ceph
+      - /etc/kubernetes/kubelet-plugins/volume/exec/rook.io~rook
+  - name: DOCKER | clean
+    shell: docker system prune -a -f
   - name: ROOK | Clean up resources LVM entries
     shell: sudo rm -rf /dev/mapper/ceph--* && sudo rm -rf /dev/ceph-* 
   

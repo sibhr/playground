@@ -3,8 +3,8 @@
 
 Test openshift with:
 
-- [vagrant cluster](./vagrant/README.md) - Install a full cluster with official ansible
-- [common examples](./examples) - deploy app to openshift and kubernetes
+- [vagrant cluster](./vagrant/README.md) - Install a full cluster with official ansible scripts
+- [examples](./examples) - deploy examples to openshift
 
 ## Resources
 

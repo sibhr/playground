@@ -1,7 +1,7 @@
 # Example from an Ansible Playbook
 ---
 - hosts:
-  - nodes
+  - all
 
   tasks:
   - name: restart service cron on centos, in all cases, also issue daemon-reload to pick up config changes

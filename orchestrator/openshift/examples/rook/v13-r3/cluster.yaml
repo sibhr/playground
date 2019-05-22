@@ -1,3 +1,10 @@
+#
+# Docs https://github.com/rook/rook/blob/v1.0.1/Documentation/ceph-cluster-crd.md
+# File cloned from https://github.com/rook/rook/blob/v1.0.1/cluster/examples/kubernetes/ceph/cluster.yaml
+#
+# Notes:
+# - mon count and storage nodes to an equal number  
+#
 #################################################################################################################
 # Define the settings for the rook-ceph cluster with settings that should only be used in a test environment.
 # A single filestore OSD will be created in the dataDirHostPath.
@@ -14,16 +21,18 @@ metadata:
   namespace: rook-ceph
 spec:
   cephVersion:
-    image: ceph/ceph:v14.2.1-20190430
-    allowUnsupported: false
+    #image: ceph/ceph:v14.2.1-20190430
+    image: ceph/ceph:v13.2.5-20190410
+    allowUnsupported: true
   dataDirHostPath: /var/lib/rook
   mon:
-    count: 1
+    count: 3
     allowMultiplePerNode: false
   dashboard:
-    enabled: true
+    enabled: false
+  # hostNetwork: true REQUIRE to add scc networkhost to rook servvice account (see readme)
   network:
-    hostNetwork: true
+    hostNetwork: false
   rbdMirroring:
     workers: 0
   placement:
@@ -53,10 +62,20 @@ spec:
     # - path: /opt/openshift/rook
     nodes:
     - name: "okd-worker-01.vm.local"
-      # directories:
-      # - path: "/var/lib/rook"
       devices:
       - name: "sdb"
+    - name: "okd-worker-02.vm.local"
+      devices:
+      - name: "sdb"
+    - name: "okd-worker-03.vm.local"
+      devices:
+      - name: "sdb"
+
+    # - name: "okd-worker-01.vm.local"
+      # directories:
+      # - path: "/var/lib/rook"
+      # devices:
+      # - name: "sdb"
 #      - name: "nvme01" # multiple osds can be created on high performance devices
 #        config:
 #          osdsPerDevice: "5"

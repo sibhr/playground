@@ -27,6 +27,7 @@ openshift_master_overwrite_named_certificates=true
 # openshift_master_identity_providers=[{'name': 'htpasswd_auth', 'login': 'true', 'challenge': 'true', 'kind': 'HTPasswdPasswordIdentityProvider' }]
 # openshift_master_htpasswd_users={'admin': '$apr1$El6pZETs$4jDO7o/CNWbxO7Q4FesVr0', 'developer':'$apr1$dkqt9l7B$cDIcTlnG946rhuFK9lPht1'}
 
+
 [masters]
 okd-master-01.vm.local openshift_ip=192.168.50.101 openshift_public_ip=192.168.50.101 ansible_connection=local
 

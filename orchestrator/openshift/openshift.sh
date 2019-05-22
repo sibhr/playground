@@ -54,17 +54,12 @@ function usage {
   echo
   echo "  -h or --help          Opens this help menu"
   echo
-  echo "               minishift: minishift-upgrade, minishift-up, minishift-login-admin, minishift-info, minishift-clock"
-  echo "               docker: docker-up, docker-down, docker-login-admin"
-  echo "               vagrant: vagrant-create-user-admin, vagrant-open-web-ui, vagrant-login-admin"
-  echo "               common: create-user-developer, get-auth, get-all, diagnostic, create-example-namespaces"
-  echo "               registry-console: registry-console-deploy, registry-console-delete"
-  echo "               examples: import-docker-image-busy-box"
+  echo "  vagrant: vagrant-create-user-admin, vagrant-open-web-ui, vagrant-login-admin"
+  echo "  common: create-user-developer, get-auth, get-all, diagnostic, create-example-namespaces"
+  echo "  registry-console: registry-console-deploy, registry-console-delete"
+  echo "  examples: import-docker-image-busy-box"
   echo "               "
   echo "               "
-  echo
-  echo
-  echo
 }
 
 
@@ -184,33 +179,69 @@ function openshift() {
     #    If mon deploymant report an error on "node selector" delete mode deployment, operator will restart it 
     #    https://github.com/rook/rook/issues/2262#issuecomment-460898915
     #
-    example-rook-delete)
-      # From https://rook.github.io/docs/rook/v1.0/openshift.html
-      # Files cloned from https://github.com/rook/rook/tree/v1.0.1/cluster/examples/kubernetes/ceph
+    example-rook-v13-r3-create)
+      # use a old ceph image, this works with replica 3, hostnetwork false and dashboard disabled
+      oc label node okd-worker-01.vm.local role=storage-node
+      oc label node okd-worker-02.vm.local role=storage-node
+      oc label node okd-worker-03.vm.local role=storage-node
+      oc create -f "${SCRIPT_PATH}/examples/rook/v13-r3/common.yaml"
+      oc create -f "${SCRIPT_PATH}/examples/rook/v13-r3/operator-openshift.yaml"
+      oc create -f "${SCRIPT_PATH}/examples/rook/v13-r3/cluster.yaml"
+      oc create -f "${SCRIPT_PATH}/examples/rook/v13-r3/storageclass.yaml"
+      oc create -f "${SCRIPT_PATH}/examples/rook/toolbox.yaml"
+      oc create -f "${SCRIPT_PATH}/examples/rook/dashboard-external-https.yaml"
+    ;;
+    example-rook-v13-r3-delete)
+      # official delete guide
+      oc delete -n rook-ceph cephblockpool replicapool
+      oc delete storageclass rook-ceph-block
+      oc -n rook-ceph delete cephcluster rook-ceph
+      echo "sleep 60 seconds"
+      sleep 60
+      kubectl -n rook-ceph get cephcluster
+      echo "If there is no ceph cluster running, go to example-rook-delete-2..."
       oc delete -f "${SCRIPT_PATH}/examples/rook/dashboard-external-https.yaml"
       oc delete -f "${SCRIPT_PATH}/examples/rook/toolbox.yaml"
-      oc delete -f "${SCRIPT_PATH}/examples/rook/storageclass.yaml"
-      oc delete -f "${SCRIPT_PATH}/examples/rook/cluster-test.yaml"
-      oc delete -f "${SCRIPT_PATH}/examples/rook/operator-openshift.yaml"
-      oc delete -f "${SCRIPT_PATH}/examples/rook/common.yaml"
+      oc delete -f "${SCRIPT_PATH}/examples/rook/v13-r3/storageclass.yaml"
+      oc delete -f "${SCRIPT_PATH}/examples/rook/v13-r3/cluster-test.yaml"
+      oc delete -f "${SCRIPT_PATH}/examples/rook/v13-r3/operator-openshift.yaml"
+      oc delete -f "${SCRIPT_PATH}/examples/rook/v13-r3/common.yaml"
       oc label node okd-worker-01.vm.local role-
       oc label node okd-worker-02.vm.local role-
       oc label node okd-worker-03.vm.local role-
       # delete data on vm
       export ANSIBLE_HOST_KEY_CHECKING=False && ansible-playbook -i .vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory ansible/rook-clean-data.yml
     ;;
-    example-rook-create)
-      # From https://rook.github.io/docs/rook/v1.0/openshift.html
-      # TODO: get worker list from oc get nodes...
+    example-rook-v14-r1-create)
+      # Only work with 1 node, mon and operator on same node, networkhost = false and dashboard enabled
       oc label node okd-worker-01.vm.local role=storage-node
-      #oc label node okd-worker-02.vm.local role=storage-node
-      #oc label node okd-worker-03.vm.local role=storage-node
-      oc create -f "${SCRIPT_PATH}/examples/rook/common.yaml"
-      oc create -f "${SCRIPT_PATH}/examples/rook/operator-openshift.yaml"
-      oc create -f "${SCRIPT_PATH}/examples/rook/cluster-test.yaml"
-      #oc create -f "${SCRIPT_PATH}/examples/rook/storageclass.yaml"
-      #oc create -f "${SCRIPT_PATH}/examples/rook/dashboard-external-https.yaml"
-      #oc create -f "${SCRIPT_PATH}/examples/rook/toolbox.yaml"
+      oc create -f "${SCRIPT_PATH}/examples/rook/v14-r1/common.yaml"
+      oc create -f "${SCRIPT_PATH}/examples/rook/v14-r1/operator-openshift.yaml"
+      oc create -f "${SCRIPT_PATH}/examples/rook/v14-r1/cluster.yaml"
+      oc create -f "${SCRIPT_PATH}/examples/rook/v14-r1/storageclass.yaml"
+      oc create -f "${SCRIPT_PATH}/examples/rook/toolbox.yaml"
+      oc create -f "${SCRIPT_PATH}/examples/rook/dashboard-external-https.yaml"
+    ;;
+    example-rook-v14-r1-delete)
+      # official delete guide
+      oc delete -n rook-ceph cephblockpool replicapool
+      oc delete storageclass rook-ceph-block
+      oc -n rook-ceph delete cephcluster rook-ceph
+      echo "sleep 60 seconds"
+      sleep 60
+      kubectl -n rook-ceph get cephcluster
+      echo "If there is no ceph cluster running, go to example-rook-delete-2..."
+      oc delete -f "${SCRIPT_PATH}/examples/rook/dashboard-external-https.yaml"
+      oc delete -f "${SCRIPT_PATH}/examples/rook/toolbox.yaml"
+      oc delete -f "${SCRIPT_PATH}/examples/rook/v14-r1/storageclass.yaml"
+      oc delete -f "${SCRIPT_PATH}/examples/rook/v14-r1/cluster-test.yaml"
+      oc delete -f "${SCRIPT_PATH}/examples/rook/v14-r1/operator-openshift.yaml"
+      oc delete -f "${SCRIPT_PATH}/examples/rook/v14-r1/common.yaml"
+      oc label node okd-worker-01.vm.local role-
+      oc label node okd-worker-02.vm.local role-
+      oc label node okd-worker-03.vm.local role-
+      # delete data on vm
+      export ANSIBLE_HOST_KEY_CHECKING=False && ansible-playbook -i .vagrant/provisioners/ansible/inventory/vagrant_ansible_inventory ansible/rook-clean-data.yml
     ;;
     example-rook-dashboard-open)
       # see https://rook.github.io/docs/rook/v1.0/ceph-dashboard.html
